@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Optional
 
 from .api_caller import APICaller
 from .config import (CURRENT_TIME, CURRENT_USER, DEEPSEEK_API_BASE,
-                     DEEPSEEK_API_KEY, DEFAULT_API_BASE_URL, DEFAULT_LLM_MODEL,
-                     DEFAULT_OPENAPI_FILE)
+                     DEEPSEEK_API_KEY, DEFAULT_API_BASE_URL, DEFAULT_API_TOKEN,
+                     DEFAULT_LLM_MODEL, DEFAULT_OPENAPI_FILE)
 from .llm_client import LLMClient
 from .openapi_parser import APIEndpoint, OpenAPIParser
 
@@ -150,7 +150,7 @@ class SwaggerAPIAgent:
     """Swagger API Agent 主类"""
 
     def __init__(
-        self, openapi_file: str = None, api_base_url: str = None, deepseek_api_key: str = None, config_file: str = None
+        self, openapi_file: str = None, api_base_url: str = None, api_token: str = None, deepseek_api_key: str = None, config_file: str = None
     ):
         """
         初始化 Swagger API Agent
@@ -158,6 +158,7 @@ class SwaggerAPIAgent:
         Args:
             openapi_file: OpenAPI 文档路径
             api_base_url: API 基础 URL
+            api_token: API 认证 Token (Bearer Token)
             deepseek_api_key: DeepSeek API 密钥
             config_file: 配置文件路径
         """
@@ -169,6 +170,12 @@ class SwaggerAPIAgent:
             self.openapi_file = openapi_file
         if api_base_url:
             self.api_base_url = api_base_url
+        if api_token:
+            self.api_token = api_token
+        if api_base_url:
+            self.api_base_url = api_base_url
+        if api_token:
+            self.api_token = api_token
         if deepseek_api_key:
             self.deepseek_api_key = deepseek_api_key
 
@@ -194,6 +201,7 @@ class SwaggerAPIAgent:
         # 从环境变量或配置文件获取配置
         self.openapi_file = os.getenv("OPENAPI_FILE", DEFAULT_OPENAPI_FILE)
         self.api_base_url = os.getenv("API_BASE_URL", DEFAULT_API_BASE_URL)
+        self.api_token = os.getenv("API_TOKEN", DEFAULT_API_TOKEN)
         self.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY", DEEPSEEK_API_KEY)
         self.deepseek_api_url = os.getenv("DEEPSEEK_API_URL", DEEPSEEK_API_BASE)
         self.deepseek_model = os.getenv("DEEPSEEK_MODEL", DEFAULT_LLM_MODEL)
@@ -224,7 +232,7 @@ class SwaggerAPIAgent:
 
             # 2. 初始化 API 调用器
             logger.info("初始化 API 调用器...")
-            self.api_caller = APICaller(self.api_base_url)
+            self.api_caller = APICaller(self.api_base_url, auth_token=self.api_token)
 
             # 3. 初始化大模型客户端
             if self.deepseek_api_key and self.deepseek_api_key != "your_deepseek_api_key_here":

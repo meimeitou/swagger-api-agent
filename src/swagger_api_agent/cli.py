@@ -310,12 +310,15 @@ def main():
   %(prog)s --list-functions                   # 列出所有可用函数
   %(prog)s --call getUsers '{"page": 1}'      # 直接调用函数
   %(prog)s --openapi custom.yaml              # 使用自定义 OpenAPI 文档
+  %(prog)s --api-token "your_token_here"      # 设置 API 认证 Token
         """,
     )
 
     parser.add_argument("--openapi", type=str, help="OpenAPI 文档文件路径")
 
     parser.add_argument("--api-url", type=str, help="API 基础 URL")
+
+    parser.add_argument("--api-token", type=str, help="API 认证 Token (Bearer Token)")
 
     parser.add_argument("--api-key", type=str, help="DeepSeek API 密钥")
 
@@ -344,7 +347,12 @@ def main():
 
     try:
         # 初始化 agent
-        agent = SwaggerAPIAgent(openapi_file=args.openapi, api_base_url=args.api_url, deepseek_api_key=args.api_key)
+        agent = SwaggerAPIAgent(
+            openapi_file=args.openapi, 
+            api_base_url=args.api_url, 
+            api_token=args.api_token,
+            deepseek_api_key=args.api_key
+        )
 
         # 初始化系统
         print_info("正在初始化 Swagger API Agent...")

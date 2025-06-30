@@ -8,11 +8,14 @@ import random
 import yaml
 import sys
 import os
+import secrets
+import hashlib
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import argparse
 import logging
+from functools import wraps
 
 # 添加项目根目录到 Python 路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -31,6 +34,7 @@ class MockDataGenerator:
         self.fake_users = []
         self.fake_products = []
         self.fake_orders = []
+        self.user_tokens = {}  # 存储用户令牌
         self.user_id_counter = 1
         self.product_id_counter = 1
         self.order_id_counter = 1
@@ -43,11 +47,23 @@ class MockDataGenerator:
         roles = ["admin", "user", "guest"]
         
         for i, name in enumerate(names):
+            # 创建纯英文的email地址
+            email_map = {
+                "张三": "zhang3",
+                "李四": "li4", 
+                "王五": "wang5",
+                "赵六": "zhao6",
+                "孙七": "sun7",
+                "周八": "zhou8",
+                "吴九": "wu9", 
+                "郑十": "zheng10"
+            }
             user = {
                 "id": self.user_id_counter,
                 "name": name,
-                "email": f"{name.replace('张', 'zhang').replace('李', 'li').replace('王', 'wang').replace('赵', 'zhao').replace('孙', 'sun').replace('周', 'zhou').replace('吴', 'wu').replace('郑', 'zheng')}{i+1}@example.com",
+                "email": f"{email_map[name]}{i+1}@example.com",
                 "role": random.choice(roles),
+                "password": self._hash_password("password123"),  # 默认密码
                 "created_at": (datetime.now() - timedelta(days=random.randint(1, 365))).isoformat()
             }
             self.fake_users.append(user)
@@ -90,6 +106,62 @@ class MockDataGenerator:
             self.fake_orders.append(order)
             self.order_id_counter += 1
 
+    def _hash_password(self, password):
+        """简单的密码哈希"""
+        return hashlib.sha256(password.encode()).hexdigest()
+    
+    def _generate_token(self):
+        """生成随机令牌"""
+        return secrets.token_hex(32)
+    
+    def authenticate_user(self, email, password):
+        """用户认证"""
+        for user in self.fake_users:
+            if user["email"] == email and user["password"] == self._hash_password(password):
+                # 生成令牌
+                token = self._generate_token()
+                self.user_tokens[token] = {
+                    "user_id": user["id"],
+                    "expires_at": datetime.now() + timedelta(hours=1)
+                }
+                return {
+                    "access_token": token,
+                    "token_type": "Bearer",
+                    "expires_in": 3600,
+                    "user": {k: v for k, v in user.items() if k != "password"}
+                }
+        return None
+    
+    def validate_token(self, token):
+        """验证令牌"""
+        if token in self.user_tokens:
+            token_data = self.user_tokens[token]
+            if datetime.now() < token_data["expires_at"]:
+                return token_data["user_id"]
+            else:
+                # 令牌已过期，删除它
+                del self.user_tokens[token]
+        return None
+    
+    def refresh_token(self, token):
+        """刷新令牌"""
+        user_id = self.validate_token(token)
+        if user_id:
+            # 删除旧令牌
+            del self.user_tokens[token]
+            # 生成新令牌
+            new_token = self._generate_token()
+            self.user_tokens[new_token] = {
+                "user_id": user_id,
+                "expires_at": datetime.now() + timedelta(hours=1)
+            }
+            return {
+                "access_token": new_token,
+                "token_type": "Bearer",
+                "expires_in": 3600
+            }
+        return None
+
     def get_users(self, page=1, limit=10, role=None):
         """获取用户列表"""
         filtered_users = self.fake_users
@@ -100,8 +172,14 @@ class MockDataGenerator:
         end = start + limit
         users_page = filtered_users[start:end]
         
+        # 移除密码字段
+        safe_users = []
+        for user in users_page:
+            safe_user = {k: v for k, v in user.items() if k != "password"}
+            safe_users.append(safe_user)
+        
         return {
-            "users": users_page,
+            "users": safe_users,
             "total": len(filtered_users),
             "page": page,
             "limit": limit
@@ -111,7 +189,8 @@ class MockDataGenerator:
         """根据ID获取用户"""
         for user in self.fake_users:
             if user["id"] == user_id:
-                return user
+                # 移除密码字段
+                return {k: v for k, v in user.items() if k != "password"}
         return None
     
     def create_user(self, user_data):
@@ -137,7 +216,8 @@ class MockDataGenerator:
                     user["email"] = user_data["email"]
                 if "role" in user_data:
                     user["role"] = user_data["role"]
-                return user
+                # 移除密码字段
+                return {k: v for k, v in user.items() if k != "password"}
         return None
     
     def delete_user(self, user_id):
@@ -198,6 +278,11 @@ class MockServer:
         self.app = Flask(__name__)
         CORS(self.app)  # 启用CORS
         
+        # 配置Flask确保中文正确显示
+        self.app.config['JSON_AS_ASCII'] = False
+        self.app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
+        self.app.config['JSONIFY_MIMETYPE'] = 'application/json; charset=utf-8'
+        
         # 初始化数据生成器
         self.data_generator = MockDataGenerator()
         
@@ -207,11 +292,88 @@ class MockServer:
         # 注册路由
         self._register_routes()
     
+    def _json_response(self, data, status_code=200):
+        """创建正确编码的JSON响应"""
+        response = self.app.response_class(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            status=status_code,
+            mimetype='application/json; charset=utf-8'
+        )
+        return response
+    
+    def _require_auth(self, f):
+        """认证装饰器"""
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            auth_header = request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer '):
+                return jsonify({"error": "Authorization header is required"}), 401
+            
+            token = auth_header[7:]  # 移除 "Bearer " 前缀
+            user_id = self.data_generator.validate_token(token)
+            if not user_id:
+                return jsonify({"error": "Invalid or expired token"}), 401
+            
+            # 将用户ID添加到请求上下文
+            request.user_id = user_id
+            return f(*args, **kwargs)
+        return decorated_function
+    
     def _register_routes(self):
         """注册路由"""
         
+        # 添加响应头处理中文
+        @self.app.after_request
+        def after_request(response):
+            if response.content_type.startswith('application/json'):
+                response.headers['Content-Type'] = 'application/json; charset=utf-8'
+            # 确保响应数据是UTF-8编码
+            if hasattr(response, 'data') and isinstance(response.data, bytes):
+                try:
+                    # 确保响应内容是正确的UTF-8编码
+                    response.data = response.data.decode('utf-8').encode('utf-8')
+                except:
+                    pass
+            return response
+        
+        # 认证相关接口
+        @self.app.route('/auth/login', methods=['POST'])
+        def login():
+            data = request.get_json()
+            logger.info(f"POST /auth/login - email: {data.get('email') if data else None}")
+            
+            if not data or 'email' not in data or 'password' not in data:
+                return jsonify({
+                    "error": "Invalid credentials",
+                    "message": "邮箱和密码是必填项"
+                }), 400
+            
+            auth_result = self.data_generator.authenticate_user(data['email'], data['password'])
+            if auth_result:
+                return self._json_response(auth_result, 200)
+            else:
+                return self._json_response({
+                    "error": "Invalid credentials",
+                    "message": "邮箱或密码错误"
+                }, 401)
+        
+        @self.app.route('/auth/refresh', methods=['POST'])
+        @self._require_auth
+        def refresh_token():
+            auth_header = request.headers.get('Authorization')
+            token = auth_header[7:]  # 移除 "Bearer " 前缀
+            
+            logger.info("POST /auth/refresh")
+            
+            refresh_result = self.data_generator.refresh_token(token)
+            if refresh_result:
+                return jsonify(refresh_result), 200
+            else:
+                return jsonify({"error": "令牌无效或已过期"}), 401
+        
         # 用户相关接口
         @self.app.route('/users', methods=['GET'])
+        @self._require_auth
         def get_users():
             page = int(request.args.get('page', 1))
             limit = int(request.args.get('limit', 10))
@@ -220,9 +382,10 @@ class MockServer:
             logger.info(f"GET /users - page: {page}, limit: {limit}, role: {role}")
             
             result = self.data_generator.get_users(page, limit, role)
-            return jsonify(result)
+            return self._json_response(result)
         
         @self.app.route('/users', methods=['POST'])
+        @self._require_auth
         def create_user():
             user_data = request.get_json()
             logger.info(f"POST /users - data: {user_data}")
@@ -232,30 +395,33 @@ class MockServer:
                 return jsonify({"error": "name and email are required"}), 400
             
             new_user = self.data_generator.create_user(user_data)
-            return jsonify(new_user), 201
+            return self._json_response(new_user, 201)
         
         @self.app.route('/users/<int:user_id>', methods=['GET'])
+        @self._require_auth
         def get_user_by_id(user_id):
             logger.info(f"GET /users/{user_id}")
             
             user = self.data_generator.get_user_by_id(user_id)
             if user:
-                return jsonify(user)
+                return self._json_response(user)
             else:
                 return jsonify({"error": "User not found"}), 404
         
         @self.app.route('/users/<int:user_id>', methods=['PUT'])
+        @self._require_auth
         def update_user(user_id):
             user_data = request.get_json()
             logger.info(f"PUT /users/{user_id} - data: {user_data}")
             
             updated_user = self.data_generator.update_user(user_id, user_data)
             if updated_user:
-                return jsonify(updated_user)
+                return self._json_response(updated_user)
             else:
                 return jsonify({"error": "User not found"}), 404
         
         @self.app.route('/users/<int:user_id>', methods=['DELETE'])
+        @self._require_auth
         def delete_user(user_id):
             logger.info(f"DELETE /users/{user_id}")
             
@@ -266,6 +432,7 @@ class MockServer:
         
         # 产品相关接口
         @self.app.route('/products', methods=['GET'])
+        @self._require_auth
         def get_products():
             category = request.args.get('category')
             search = request.args.get('search')
@@ -275,10 +442,11 @@ class MockServer:
             logger.info(f"GET /products - category: {category}, search: {search}, min_price: {min_price}, max_price: {max_price}")
             
             products = self.data_generator.get_products(category, search, min_price, max_price)
-            return jsonify(products)
+            return self._json_response(products)
         
         # 订单相关接口
         @self.app.route('/orders', methods=['POST'])
+        @self._require_auth
         def create_order():
             order_data = request.get_json()
             logger.info(f"POST /orders - data: {order_data}")
@@ -288,7 +456,7 @@ class MockServer:
                 return jsonify({"error": "userId and items are required"}), 400
             
             new_order = self.data_generator.create_order(order_data)
-            return jsonify(new_order), 201
+            return self._json_response(new_order, 201)
         
         # 健康检查接口
         @self.app.route('/health', methods=['GET'])
@@ -297,6 +465,25 @@ class MockServer:
                 "status": "healthy",
                 "timestamp": datetime.now().isoformat(),
                 "message": "Mock server is running"
+            })
+        
+        # 调试接口 - 获取可用的登录用户
+        @self.app.route('/debug/users', methods=['GET'])
+        def debug_users():
+            """调试接口：显示可用的登录用户信息"""
+            users_info = []
+            for user in self.data_generator.fake_users:
+                users_info.append({
+                    "id": user["id"],
+                    "name": user["name"],
+                    "email": user["email"],
+                    "role": user["role"],
+                    "login_info": "使用邮箱和密码 'password123' 登录"
+                })
+            return self._json_response({
+                "message": "可用的登录用户",
+                "users": users_info,
+                "note": "所有用户的默认密码都是 'password123'"
             })
         
         # API文档接口
@@ -346,7 +533,11 @@ class MockServer:
             try:
                 with open('example_openapi.yaml', 'r', encoding='utf-8') as f:
                     content = f.read()
-                return content, 200, {'Content-Type': 'text/yaml'}
+                response = self.app.response_class(
+                    content,
+                    mimetype='text/yaml; charset=utf-8'
+                )
+                return response
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
     
@@ -361,15 +552,29 @@ class MockServer:
 📋 OpenAPI规范: http://{host}:{port}/openapi.yaml
 
 可用的接口:
-- GET  /users              - 获取用户列表
-- POST /users              - 创建用户
-- GET  /users/{{id}}         - 获取指定用户
-- PUT  /users/{{id}}         - 更新用户信息
-- DELETE /users/{{id}}       - 删除用户
-- GET  /products           - 获取产品列表
-- POST /orders             - 创建订单
+- POST /auth/login         - 用户登录
+- POST /auth/refresh       - 刷新令牌
+- GET  /users              - 获取用户列表 (需要认证)
+- POST /users              - 创建用户 (需要认证)
+- GET  /users/{{id}}         - 获取指定用户 (需要认证)
+- PUT  /users/{{id}}         - 更新用户信息 (需要认证)
+- DELETE /users/{{id}}       - 删除用户 (需要认证)
+- GET  /products           - 获取产品列表 (需要认证)
+- POST /orders             - 创建订单 (需要认证)
 - GET  /health             - 健康检查
+- GET  /debug/users        - 查看可用登录用户 (调试用)
 - GET  /docs               - API文档
+
+认证说明:
+- 访问 /debug/users 查看所有可用的登录用户
+- 使用任何用户的邮箱和密码 'password123' 进行登录
+- 登录成功后会返回 access_token
+- 在请求头中添加: Authorization: Bearer {{token}}
+
+示例登录:
+curl -X POST http://{host}:{port}/auth/login \\
+  -H "Content-Type: application/json" \\
+  -d '{{"email": "zhang1@example.com", "password": "password123"}}'
         """)
         
         self.app.run(host=host, port=port, debug=debug)

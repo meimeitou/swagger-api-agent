@@ -39,7 +39,7 @@ class APICallError(Exception):
 class APICaller:
     """API 调用器"""
 
-    def __init__(self, base_url: str, timeout: int = 30, max_retries: int = 3):
+    def __init__(self, base_url: str, timeout: int = 30, max_retries: int = 3, auth_token: Optional[str] = None):
         """
         初始化 API 调用器
 
@@ -47,10 +47,12 @@ class APICaller:
             base_url: API 基础 URL
             timeout: 请求超时时间（秒）
             max_retries: 最大重试次数
+            auth_token: 认证 token，如果提供则在请求头中添加 Authorization: Bearer {token}
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
+        self.auth_token = auth_token
         self.session = self._create_session()
 
     def _create_session(self) -> requests.Session:
@@ -73,6 +75,10 @@ class APICaller:
         session.headers.update(
             {"User-Agent": "SwaggerAPIAgent/1.0.0", "Accept": "application/json", "Content-Type": "application/json"}
         )
+        
+        # 如果提供了认证 token，添加 Authorization 头
+        if self.auth_token:
+            session.headers.update({"Authorization": f"Bearer {self.auth_token}"})
 
         return session
 

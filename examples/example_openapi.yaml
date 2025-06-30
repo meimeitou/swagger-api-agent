@@ -9,6 +9,100 @@ servers:
   - url: http://localhost:8000
     description: 测试环境服务器
 
+# 全局安全配置 - 所有接口默认使用 JWT Bearer 认证
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      summary: 用户登录
+      description: 用户登录获取 JWT 访问令牌
+      operationId: login
+      security: []  # 登录端点不需要认证
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: 用户邮箱
+                  example: "zhangsan@example.com"
+                password:
+                  type: string
+                  format: password
+                  description: 用户密码
+                  example: "password123"
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: JWT 访问令牌
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  token_type:
+                    type: string
+                    example: "Bearer"
+                  expires_in:
+                    type: integer
+                    description: 令牌过期时间（秒）
+                    example: 3600
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: 认证失败
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid credentials"
+                  message:
+                    type: string
+                    example: "邮箱或密码错误"
+
+  /auth/refresh:
+    post:
+      summary: 刷新令牌
+      description: 使用有效的 JWT 令牌获取新的访问令牌
+      operationId: refreshToken
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 令牌刷新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: 新的 JWT 访问令牌
+                  token_type:
+                    type: string
+                    example: "Bearer"
+                  expires_in:
+                    type: integer
+                    description: 令牌过期时间（秒）
+                    example: 3600
+        '401':
+          description: 令牌无效或已过期
+
 paths:
   /users:
     get:
@@ -258,6 +352,13 @@ paths:
                 $ref: '#/components/schemas/Order'
 
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "使用 JWT Bearer 令牌进行认证。请在请求头中添加: Authorization: Bearer {token}"
+
   schemas:
     User:
       type: object

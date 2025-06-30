@@ -23,6 +23,7 @@ DEFAULT_LLM_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 # OpenAPI 和 API 基础配置
 DEFAULT_OPENAPI_FILE = os.getenv("OPENAPI_FILE", "examples/example_openapi.yaml")
 DEFAULT_API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8080")
+DEFAULT_API_TOKEN = os.getenv("API_TOKEN")
 
 # 当前用户信息
 CURRENT_USER = "meimeitou"
