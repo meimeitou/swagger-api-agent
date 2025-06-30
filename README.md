@@ -500,8 +500,8 @@ swagger-web-api --debug
 
 如有问题或建议，请通过以下方式联系：
 
-- 提交 [Issue](https://github.com/your-repo/swagger-api-agent/issues)
-- 发送邮件到: <your-email@example.com>
+- 提交 [Issue](https://github.com/meimeitou/swagger-api-agent/issues)
+- 发送邮件到: <772006843@qq.com>
 
 ---
 
