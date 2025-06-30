@@ -1,0 +1,25 @@
+# 包含的文件
+include README.md
+include LICENSE
+include requirements.txt
+include pyproject.toml
+
+# 包含示例文件
+recursive-include examples *.yaml *.yml *.json *.py
+
+# 包含脚本
+recursive-include scripts *.py *.sh
+
+# 包含文档
+recursive-include docs *.md *.rst *.txt
+
+# 排除不需要的文件
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd
+global-exclude __pycache__
+global-exclude .DS_Store
+global-exclude .git*
+global-exclude .pytest_cache
+global-exclude .coverage
+global-exclude htmlcov

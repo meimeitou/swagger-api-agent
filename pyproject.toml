@@ -1,0 +1,161 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "swagger-api-agent"
+version = "1.0.0"
+description = "自动化自然语言调用 API 接口的智能代理"
+authors = ["Swagger API Agent Team <team@swagger-api-agent.com>"]
+readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/swagger-api-agent/swagger-api-agent"
+repository = "https://github.com/swagger-api-agent/swagger-api-agent"
+documentation = "https://github.com/swagger-api-agent/swagger-api-agent/blob/main/docs/"
+keywords = [
+    "swagger", 
+    "openapi", 
+    "api", 
+    "agent", 
+    "llm", 
+    "natural-language", 
+    "automation",
+    "deepseek",
+    "flask",
+    "cli"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+packages = [{include = "swagger_api_agent", from = "src"}]
+include = ["examples/*.yaml", "examples/*.yml", "scripts/*.py"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "^2.28.0"
+pyyaml = "^6.0"
+openapi-spec-validator = "^0.5.0"
+flask = "^2.2.0"
+flask-cors = "^4.0.0"
+colorama = "^0.4.4"
+pydantic = "^2.0.0"
+httpx = "^0.24.0"
+openai = "^1.0.0"
+prance = "^23.6.21.0"
+jsonschema = "^4.0.0"
+jinja2 = "^3.0.0"
+python-dotenv = "^1.0.0"
+swagger-spec-validator = "^3.0.4"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0"
+pytest-cov = "^4.0"
+black = "^23.0"
+flake8 = "^6.0"
+mypy = "^1.0"
+isort = "^5.12"
+pre-commit = "^3.0"
+twine = "^4.0"
+build = "^0.10"
+types-pyyaml = "^6.0.12.20250516"
+types-requests = "^2.32.4.20250611"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.0"
+pytest-cov = "^4.0"
+requests-mock = "^1.10"
+pytest-asyncio = "^0.21"
+
+[tool.poetry.scripts]
+swagger-api-agent = "swagger_api_agent.cli:main"
+swagger-web-api = "swagger_api_agent.web_api:main"
+
+[tool.black]
+line-length = 120
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--cov=swagger_api_agent",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+warn_no_return = true
+warn_unreachable = true
+strict_equality = false
+
+[[tool.mypy.overrides]]
+module = [
+    "colorama.*",
+    "flask_cors.*",
+    "dotenv.*",
+    "prance.*",
+    "swagger_spec_validator.*",
+    "openapi_spec_validator.*",
+    "pydantic.*",
+]
+ignore_missing_imports = true
+
+[tool.flake8]
+max-line-length = 120
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    ".eggs",
+    "*.egg",
+    "build",
+    "dist",
+]
+ignore = [
+    "E203",  # whitespace before ':'
+    "F541",  # f-string is missing placeholders
+    "W503",  # line break before binary operator
+]

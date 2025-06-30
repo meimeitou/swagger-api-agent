@@ -1,0 +1,341 @@
+openapi: 3.0.3
+info:
+  title: Sample API
+  description: 一个示例API，用于演示自动化自然语言调用功能
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: 生产环境服务器
+  - url: http://localhost:8000
+    description: 测试环境服务器
+
+paths:
+  /users:
+    get:
+      summary: 获取用户列表
+      description: 获取系统中的用户列表，支持分页和筛选
+      operationId: getUsers
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: role
+          in: query
+          description: 用户角色筛选
+          required: false
+          schema:
+            type: string
+            enum: [admin, user, guest]
+      responses:
+        '200':
+          description: 成功返回用户列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+    post:
+      summary: 创建用户
+      description: 创建一个新的用户账户
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+              properties:
+                name:
+                  type: string
+                  description: 用户姓名
+                  example: "张三"
+                email:
+                  type: string
+                  format: email
+                  description: 用户邮箱
+                  example: "zhangsan@example.com"
+                role:
+                  type: string
+                  enum: [admin, user, guest]
+                  default: user
+                  description: 用户角色
+      responses:
+        '201':
+          description: 用户创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/{userId}:
+    get:
+      summary: 获取用户信息
+      description: 根据用户ID获取特定用户的详细信息
+      operationId: getUserById
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: 用户ID
+          schema:
+            type: integer
+            example: 123
+      responses:
+        '200':
+          description: 成功返回用户信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: 用户不存在
+
+    put:
+      summary: 更新用户信息
+      description: 更新指定用户的信息
+      operationId: updateUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: 用户ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 用户姓名
+                email:
+                  type: string
+                  format: email
+                  description: 用户邮箱
+                role:
+                  type: string
+                  enum: [admin, user, guest]
+                  description: 用户角色
+      responses:
+        '200':
+          description: 用户更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+    delete:
+      summary: 删除用户
+      description: 删除指定的用户账户
+      operationId: deleteUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: 用户ID
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 用户删除成功
+        '404':
+          description: 用户不存在
+
+  /products:
+    get:
+      summary: 获取产品列表
+      description: 获取产品列表，支持分类筛选和搜索
+      operationId: getProducts
+      parameters:
+        - name: category
+          in: query
+          description: 产品分类
+          required: false
+          schema:
+            type: string
+            example: "electronics"
+        - name: search
+          in: query
+          description: 搜索关键词
+          required: false
+          schema:
+            type: string
+        - name: min_price
+          in: query
+          description: 最低价格
+          required: false
+          schema:
+            type: number
+            format: float
+        - name: max_price
+          in: query
+          description: 最高价格
+          required: false
+          schema:
+            type: number
+            format: float
+      responses:
+        '200':
+          description: 成功返回产品列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+
+  /orders:
+    post:
+      summary: 创建订单
+      description: 创建一个新的订单
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - items
+              properties:
+                userId:
+                  type: integer
+                  description: 用户ID
+                items:
+                  type: array
+                  description: 订单商品列表
+                  items:
+                    type: object
+                    required:
+                      - productId
+                      - quantity
+                    properties:
+                      productId:
+                        type: integer
+                        description: 产品ID
+                      quantity:
+                        type: integer
+                        description: 数量
+                        minimum: 1
+      responses:
+        '201':
+          description: 订单创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 用户ID
+          example: 123
+        name:
+          type: string
+          description: 用户姓名
+          example: "张三"
+        email:
+          type: string
+          format: email
+          description: 用户邮箱
+          example: "zhangsan@example.com"
+        role:
+          type: string
+          enum: [admin, user, guest]
+          description: 用户角色
+          example: "user"
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 产品ID
+        name:
+          type: string
+          description: 产品名称
+        category:
+          type: string
+          description: 产品分类
+        price:
+          type: number
+          format: float
+          description: 产品价格
+        description:
+          type: string
+          description: 产品描述
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 订单ID
+        userId:
+          type: integer
+          description: 用户ID
+        items:
+          type: array
+          description: 订单商品列表
+          items:
+            type: object
+            properties:
+              productId:
+                type: integer
+              quantity:
+                type: integer
+              price:
+                type: number
+                format: float
+        total:
+          type: number
+          format: float
+          description: 订单总金额
+        status:
+          type: string
+          enum: [pending, confirmed, shipped, delivered, cancelled]
+          description: 订单状态
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间

@@ -1,0 +1,15 @@
+requests
+pyyaml
+openapi-spec-validator
+flask
+flask-cors
+colorama
+pydantic
+pydantic-ai
+httpx
+openai
+prance
+jsonschema
+jinja2
+python-dotenv
+openapi_parser
