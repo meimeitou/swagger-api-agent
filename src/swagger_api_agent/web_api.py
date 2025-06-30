@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from flask import Flask, jsonify, request
-from flask_cors import CORS
+# from flask_cors import CORS
 
 from .agent import SwaggerAPIAgent
 
@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 # 创建 Flask 应用
 app = Flask(__name__)
-CORS(app)  # 启用跨域支持
+# CORS(app)  # 禁用跨域支持
 
 # 配置 Flask 应用以正确显示中文
 app.config["JSON_AS_ASCII"] = False  # 禁用 ASCII 转义，正确显示中文
@@ -137,11 +137,32 @@ def process_natural_language():
         execution_context = {"is_cli_mode": False}
         result = agent.process_natural_language(user_message, context, execution_context)
 
-        return jsonify(result)
+        # 确保返回完整的结果，包括所有字段
+        response_data = {
+            "success": result.get("success", False),
+            "message": result.get("message", ""),
+            "data": result.get("function_calls", None) or result.get("data", None),
+            "function_calls": result.get("function_calls", []),
+            "usage": result.get("usage", None),
+            "timestamp": result.get("timestamp", None)
+        }
+
+        # 如果有错误，包含错误信息
+        if not result.get("success", False):
+            response_data["error"] = result.get("error", "未知错误")
+
+        return jsonify(response_data)
 
     except Exception as e:
         logger.error(f"处理自然语言输入异常: {str(e)}")
-        return jsonify({"success": False, "error": f"处理异常: {str(e)}"}), 500
+        return jsonify({
+            "success": False, 
+            "error": f"处理异常: {str(e)}",
+            "message": "",
+            "data": None,
+            "function_calls": [],
+            "usage": None
+        }), 500
 
 
 @app.route("/api/call", methods=["POST"])

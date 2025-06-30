@@ -108,8 +108,9 @@ docker run --rm -p 8080:8080 \
 ```
 
 访问：
-- API 端点：http://localhost:5000
-- 健康检查：http://localhost:5000/health
+
+- API 端点：<http://localhost:5000>
+- 健康检查：<http://localhost:5000/health>
 
 ### Mock 服务器模式
 
@@ -130,9 +131,10 @@ docker run --rm -p 9000:9000 \
 ```
 
 访问：
-- Mock API：http://localhost:8080
-- API 文档：http://localhost:8080/docs
-- 健康检查：http://localhost:8080/health
+
+- Mock API：<http://localhost:8080>
+- API 文档：<http://localhost:8080/docs>
+- 健康检查：<http://localhost:8080/health>
 
 ## 🐳 Docker Compose
 
@@ -357,6 +359,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 ### 常见问题
 
 1. **容器无法启动**
+
    ```bash
    # 查看日志
    docker logs container_name
@@ -366,21 +369,24 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
    ```
 
 2. **端口冲突**
+
    ```bash
    # 检查端口占用
    netstat -tulpn | grep :5000
    
    # 使用不同端口
-   docker run --rm -p 5001:5000 swagger-api-agent:latest web
+   docker run --rm -p 5000:5000 swagger-api-agent:latest web
    ```
 
 3. **权限问题**
+
    ```bash
    # 使用特定用户运行
    docker run --rm --user $(id -u):$(id -g) swagger-api-agent:latest
    ```
 
 4. **API 密钥问题**
+
    ```bash
    # 检查环境变量
    docker run --rm -it swagger-api-agent:latest env | grep DEEPSEEK

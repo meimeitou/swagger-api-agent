@@ -83,6 +83,24 @@ stop-all:  ## 停止所有服务
 	pkill -f "mock_server.py" || true
 	pkill -f "swagger-web-api" || true
 
+run-frontend:  ## 运行前端开发服务器
+	cd web && npm run dev
+
+run-frontend-build:  ## 构建前端项目
+	cd web && npm run build
+
+run-frontend-preview:  ## 预览前端构建结果
+	cd web && npm run preview
+
+run-full-stack:  ## 同时运行前后端服务
+	@echo "启动后端服务..."
+	poetry run swagger-web-api --host 0.0.0.0 --port 5000 &
+	@echo "启动前端服务..."
+	cd web && npm run dev &
+	@echo "前端: http://localhost:5173"
+	@echo "后端: http://localhost:5000"
+	@echo "按 Ctrl+C 停止所有服务"
+
 # 传统 pip 方式的兼容命令 (不推荐)
 install-pip:  ## 使用 pip 安装 (兼容性)
 	pip install -e .

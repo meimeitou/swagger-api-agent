@@ -71,7 +71,7 @@ cd swagger-api-agent
 pip install -e .
 ```
 
-#### 开发模式安装
+#### 从源码开发安装
 
 ```bash
 git clone <your-repo-url>
@@ -225,85 +225,36 @@ if agent.initialize():
 
 ## 📂 项目结构
 
-```
+```text
 swagger-api-agent/
-├── src/swagger_api_agent/     # 主要源代码
-│   ├── __init__.py           # 包初始化
-│   ├── agent.py              # 主要 Agent 类
-│   ├── api_caller.py         # API 调用器
-│   ├── cli.py                # 命令行界面
-│   ├── config.py             # 配置文件
-│   ├── llm_client.py         # LLM 客户端
-│   ├── openapi_parser.py     # OpenAPI 解析器
-│   └── web_api.py            # Web API 服务
-├── tests/                    # 测试文件
+├── src/swagger_api_agent/     # 主要源代码包
+│   ├── __init__.py           # 包初始化，导出主要接口
+│   ├── agent.py              # 核心 Agent 类，整合所有功能
+│   ├── api_caller.py         # API 调用器，负责 HTTP 请求
+│   ├── cli.py                # 命令行界面实现
+│   ├── config.py             # 配置管理和环境变量
+│   ├── llm_client.py         # 大语言模型客户端
+│   ├── openapi_parser.py     # OpenAPI 文档解析器
+│   └── web_api.py            # Flask Web API 服务
+├── web/                      # 前端界面
+│   ├── src/                  # React TypeScript 源码
+│   ├── public/               # 静态资源
+│   └── package.json          # 前端依赖配置
+├── tests/                    # 测试代码
 ├── examples/                 # 示例文件
-│   └── example_openapi.yaml  # 示例 API 文档
-├── scripts/                  # 脚本文件
-│   ├── mock_server.py        # Mock 服务器
+│   └── example_openapi.yaml  # 示例 OpenAPI 文档
+├── scripts/                  # 工具脚本
+│   ├── mock_server.py        # Mock API 服务器
 │   └── start_mock_server.sh  # 启动脚本
-├── docs/                     # 文档
-├── requirements.txt          # 依赖列表
-├── pyproject.toml           # 项目配置
-├── setup.py                 # 安装脚本
-└── README.md                # 说明文档
+├── docs/                     # 项目文档
+├── pyproject.toml           # Poetry 项目配置
+├── Makefile                 # 开发工具命令
+└── README.md                # 项目说明文档
 ```
 
-### 2. 创建虚拟环境
+### 使用示例
 
-```bash
-./manager.sh venv
-```
-
-### 4. 配置环境变量
-
-复制 `.env.example` 为 `.env` 并填写配置：
-
-```bash
-cp .env.example .env
-```
-
-编辑 `.env` 文件：
-
-```env
-# DeepSeek API 配置
-DEEPSEEK_API_KEY=your_deepseek_api_key_here
-DEEPSEEK_API_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-chat
-
-# OpenAPI 文档路径
-OPENAPI_FILE=example_openapi.yaml
-
-# API 服务器配置  
-API_BASE_URL=https://api.example.com/v1
-
-# 调试模式
-DEBUG=True
-```
-
-## 🎯 快速开始
-
-### 1. 运行测试
-
-```bash
-python test.py
-```
-
-### 2. 启动交互式命令行
-
-```bash
-python cli.py
-```
-
-### 3. 启动 Web API 服务
-
-```bash
-python web_api.py --host 0.0.0.0 --port 5000
-```
-
-### 4. 使用示例
-
-#### 自然语言调用示例
+#### 自然语言调用
 
 ```python
 from swagger_api_agent import SwaggerAPIAgent
@@ -327,7 +278,7 @@ result = agent.process_natural_language("查找ID为123的用户信息")
 print(result)
 ```
 
-#### 直接函数调用示例
+#### 直接函数调用
 
 ```python
 # 直接调用 API 函数
@@ -346,6 +297,26 @@ result = agent.call_api_directly("createUser", {
 })
 print(result)
 ```
+
+## 🧪 测试
+
+使用 Poetry 运行测试：
+
+```bash
+# 运行所有测试
+make test
+
+# 运行测试并生成覆盖率报告
+poetry run pytest tests/ -v --cov=swagger_api_agent --cov-report=html
+
+# 代码检查
+make lint
+
+# 代码格式化
+make format
+```
+
+## 📝 使用示例
 
 ## 📖 API 文档
 
@@ -455,46 +426,6 @@ API 调用器，负责实际的 HTTP 请求。
 
 清空对话历史。
 
-## 🎮 命令行工具
-
-### 基本用法
-
-```bash
-# 启动交互模式
-python cli.py
-
-# 运行测试模式
-python cli.py --test
-
-# 列出所有可用函数
-python cli.py --list-functions
-
-# 直接调用函数
-python cli.py --call getUsers --params '{"page": 1}'
-
-# 使用自定义 OpenAPI 文档
-python cli.py --openapi custom.yaml
-
-# 启用调试模式
-python cli.py --debug
-
-# 需要用户确认才执行 API 调用
-python cli.py --require-confirmation
-
-# 导出函数模式
-python cli.py --export-schemas schemas.json
-```
-
-### 交互模式命令
-
-在交互模式中，可以使用以下命令：
-
-- `help` - 显示帮助信息
-- `functions` - 列出所有可用函数
-- `clear` - 清空对话历史
-- `status` - 显示系统状态
-- `quit/exit` - 退出程序
-
 ## 🔧 配置选项
 
 ### 环境变量
@@ -504,164 +435,46 @@ python cli.py --export-schemas schemas.json
 | `DEEPSEEK_API_KEY` | DeepSeek API 密钥 | 必需 |
 | `DEEPSEEK_API_URL` | DeepSeek API 地址 | `https://api.deepseek.com` |
 | `DEEPSEEK_MODEL` | 使用的模型名称 | `deepseek-chat` |
-| `OPENAPI_FILE` | OpenAPI 文档路径 | `example_openapi.yaml` |
-| `API_BASE_URL` | API 基础 URL | `https://api.example.com/v1` |
-| `SHOW_API_CALL_DETAILS` | 执行前显示接口调用详情 | `true` |
+| `OPENAPI_FILE` | OpenAPI 文档路径 | `examples/example_openapi.yaml` |
+| `API_BASE_URL` | API 基础 URL | `http://localhost:8080` |
+| `SHOW_API_CALL_DETAILS` | 显示接口调用详情 | `true` |
 | `REQUIRE_USER_CONFIRMATION` | 执行前需要用户确认 | `false` |
-| `DEBUG` | 调试模式 | `False` |
 
 ### API 认证
 
 支持多种认证方式：
 
-#### Bearer Token
-
-```python
-agent.set_api_auth('bearer', token='your_token_here')
-```
-
-#### API Key
-
-```python
-agent.set_api_auth('apikey', key='your_api_key', header='X-API-Key')
-```
-
-## 📁 项目结构
-
-```
-swagger-api-agent/
-├── openapi_parser.py      # OpenAPI 文档解析器
-├── api_caller.py          # API 调用器
-├── llm_client.py          # 大模型客户端
-├── swagger_api_agent.py   # 主要代理类
-├── cli.py                 # 命令行界面
-├── web_api.py            # Web API 服务
-├── test.py               # 测试脚本
-├── config.py             # 配置文件
-├── requirements.in       # 依赖列表
-├── example_openapi.yaml  # 示例 OpenAPI 文档
-├── .env                  # 环境变量配置
-└── README.md            # 项目文档
-```
-
-## 🧪 测试
-
-### 运行全部测试
-
-```bash
-python test.py
-```
-
-### 运行特定测试
-
-```bash
-# 测试 OpenAPI 解析
-python -c "from test import test_openapi_parser; test_openapi_parser()"
-
-# 测试 Agent 功能
-python -c "from test import test_swagger_agent; test_swagger_agent()"
-```
-
-## 📝 使用示例
-
-### 1. 电商 API 调用
-
-```python
-# 搜索产品
-result = agent.process_natural_language("搜索价格在100到500之间的电子产品")
-
-# 创建订单
-result = agent.process_natural_language(
-    "为用户123创建一个订单，包含产品456，数量为2"
-)
-```
-
-### 2. 用户管理
-
-```python
-# 获取用户列表
-result = agent.process_natural_language("获取所有管理员用户")
-
-# 更新用户信息
-result = agent.process_natural_language("更新用户123的邮箱为new@example.com")
-
-# 删除用户
-result = agent.process_natural_language("删除用户456")
-```
-
-### 3. 数据查询
-
-```python
-# 复杂查询
-result = agent.process_natural_language(
-    "查找最近创建的10个用户，按创建时间排序"
-)
-
-# 统计信息
-result = agent.process_natural_language("统计每个角色的用户数量")
-```
+- API Key 认证
+- Bearer Token 认证
+- 基础认证（Basic Auth）
+- 自定义请求头
 
 ## 🔍 故障排除
 
 ### 常见问题
 
-#### 1. API 密钥错误
+1. **DeepSeek API 密钥错误**
+   - 检查 `DEEPSEEK_API_KEY` 环境变量设置
+   - 确认 API 密钥有效且有足够的额度
 
-```
-错误: 大模型调用失败: Invalid API key
-```
+2. **OpenAPI 文档解析失败**
+   - 验证 OpenAPI 文档格式是否正确
+   - 检查文件路径是否存在
 
-**解决方案**: 检查 `.env` 文件中的 `DEEPSEEK_API_KEY` 配置。
-
-#### 2. OpenAPI 文档解析失败
-
-```
-错误: 解析 OpenAPI 文档失败
-```
-
-**解决方案**:
-
-- 检查 OpenAPI 文档格式是否正确
-- 使用在线工具验证文档有效性
-- 检查文件路径是否正确
-
-#### 3. API 调用超时
-
-```
-错误: API 调用超时
-```
-
-**解决方案**:
-
-- 检查网络连接
-- 验证 API 服务器地址
-- 调整超时设置
-
-#### 4. 参数验证失败
-
-```
-错误: 参数验证失败
-```
-
-**解决方案**:
-
-- 检查参数类型和格式
-- 查看 API 文档中的参数要求
-- 使用 `--debug` 模式查看详细信息
+3. **API 调用失败**
+   - 确认目标 API 服务是否可访问
+   - 检查认证配置是否正确
 
 ### 调试模式
 
-启用调试模式可以获得更详细的日志信息：
+启用详细日志输出：
 
 ```bash
-python cli.py --debug
-```
+# 命令行模式
+swagger-api-agent --debug
 
-或者在代码中：
-
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
+# Web API 模式
+swagger-web-api --debug
 ```
 
 ## 🤝 贡献指南
