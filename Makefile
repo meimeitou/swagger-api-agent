@@ -100,3 +100,28 @@ lint-pip:  ## 使用 pip 环境进行代码检查 (兼容性)
 format-pip:  ## 使用 pip 环境进行代码格式化 (兼容性)
 	python -m black src/ tests/
 	python -m isort src/ tests/
+
+# Docker 相关命令
+docker-build:  ## 构建 Docker 镜像
+	./docker.sh build
+
+docker-run-cli:  ## 运行 Docker CLI 模式
+	./docker.sh run-cli
+
+docker-run-web:  ## 运行 Docker Web API 模式
+	./docker.sh run-web
+
+docker-run-mock:  ## 运行 Docker Mock 服务器
+	./docker.sh run-mock
+
+docker-compose-up:  ## 使用 docker-compose 启动所有服务
+	./docker.sh compose
+
+docker-compose-down:  ## 停止 docker-compose 服务
+	./docker.sh stop
+
+docker-clean:  ## 清理 Docker 资源
+	./docker.sh clean
+
+docker-help:  ## 显示 Docker 帮助信息
+	./docker.sh help

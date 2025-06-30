@@ -1,0 +1,63 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.pytest_cache/
+.coverage
+.mypy_cache/
+htmlcov/
+coverage.xml
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+logs/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Development files
+.env
+# poetry.lock  # 注释掉，Docker 构建需要此文件
+requirements.txt
+requirements.in
+setup.py
+MANIFEST.in
+Makefile
+.flake8
+
+# Test files
+tests/
+
+# Development scripts (keep only essential scripts)
+swagger-api-agent
+swagger-web-api

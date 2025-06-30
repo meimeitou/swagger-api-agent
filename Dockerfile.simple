@@ -1,0 +1,43 @@
+# 测试构建 Dockerfile
+FROM python:3.11-slim-bookworm
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 复制项目文件
+COPY pyproject.toml ./
+COPY src/ ./src/
+COPY examples/ ./examples/
+COPY scripts/ ./scripts/
+COPY README.md LICENSE ./
+
+# 安装 pip 和项目依赖
+RUN pip install --no-cache-dir -e .
+
+# 设置环境变量
+ENV PYTHONPATH="/app/src:$PYTHONPATH"
+ENV PYTHONUNBUFFERED=1
+
+# 暴露端口
+EXPOSE 5000 8080
+
+# 创建简单的入口点
+COPY <<EOF /app/entrypoint.sh
+#!/bin/bash
+case "\${1:-cli}" in
+    cli) exec swagger-api-agent "\${@:2}" ;;
+    web) exec swagger-web-api --host 0.0.0.0 --port 5000 "\${@:2}" ;;
+    mock) exec python /app/scripts/mock_server.py --host 0.0.0.0 --port 8080 "\${@:2}" ;;
+    *) echo "Usage: cli|web|mock"; exit 1 ;;
+esac
+EOF
+
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["cli"]
