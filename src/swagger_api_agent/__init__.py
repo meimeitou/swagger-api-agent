@@ -7,7 +7,7 @@ Swagger API Agent - 自动化自然语言调用 API 接口
 - 解析 OpenAPI/Swagger 文档
 - 自然语言理解和 API 调用
 - 智能参数推断和验证
-- 多种调用模式（CLI、Web API、直接调用）
+- 多种调用模式（Web API、直接调用）
 - 用户确认和安全控制
 
 作者: Swagger API Agent Team

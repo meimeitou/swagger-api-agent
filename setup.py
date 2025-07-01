@@ -76,7 +76,6 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "swagger-api-agent=swagger_api_agent.cli:main",
             "swagger-web-api=swagger_api_agent.web_api:main",
         ],
     },
@@ -95,6 +94,6 @@ setup(
         "automation",
         "deepseek",
         "flask",
-        "cli"
+        "web-api"
     ],
 )

@@ -18,11 +18,7 @@ const AuthGuard: React.FC = () => {
     // 检查初始认证状态
     const checkAuth = async () => {
       try {
-        console.log('检查用户认证状态...');
-        
         const authenticated = apiService.isAuthenticated();
-        console.log('认证状态:', authenticated);
-        
         dispatch({ type: 'SET_AUTHENTICATED', payload: authenticated });
         
         // 如果已认证，解析用户信息
@@ -38,9 +34,7 @@ const AuthGuard: React.FC = () => {
                   loginTime: new Date(payload.iat * 1000).toLocaleString('zh-CN')
                 }
               });
-              console.log('用户信息已设置:', payload.username);
-            } catch (error) {
-              console.error('Failed to parse token:', error);
+            } catch {
               // 如果token解析失败，清除认证状态
               dispatch({ type: 'SET_AUTHENTICATED', payload: false });
             }
@@ -75,7 +69,6 @@ const AuthGuard: React.FC = () => {
     // 监听存储变化（用于多标签页同步登出）
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'swagger_api_token' && !e.newValue) {
-        console.log('检测到其他标签页登出，同步登出状态');
         handleAuthExpired();
       }
     };
@@ -98,7 +91,6 @@ const AuthGuard: React.FC = () => {
   }, [dispatch]);
 
   const handleLoginSuccess = () => {
-    console.log('登录成功，更新认证状态');
     dispatch({ type: 'SET_AUTHENTICATED', payload: true });
     dispatch({ type: 'CLEAR_ERROR' });
     
@@ -114,7 +106,6 @@ const AuthGuard: React.FC = () => {
             loginTime: new Date(payload.iat * 1000).toLocaleString('zh-CN')
           }
         });
-        console.log('登录用户:', payload.username);
       } catch (error) {
         console.error('Failed to parse token after login:', error);
       }

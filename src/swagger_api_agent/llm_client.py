@@ -94,6 +94,7 @@ class LLMClient:
                 tool_choice="auto",
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
+                timeout=30  # 30秒超时
             )
 
             return self._process_response(response)
@@ -257,13 +258,17 @@ class LLMClient:
     def validate_api_key(self) -> bool:
         """验证 API 密钥是否有效"""
         try:
-            # 发送一个简单的请求来验证密钥
-            self.client.chat.completions.create(
-                model=self.model, messages=[{"role": "user", "content": "Hello"}], max_tokens=1
+            # 发送一个简单的请求来验证密钥，设置较短的超时时间
+            response = self.client.chat.completions.create(
+                model=self.model, 
+                messages=[{"role": "user", "content": "Hello"}], 
+                max_tokens=1,
+                timeout=10  # 10秒超时
             )
+            logger.info("API 密钥验证成功")
             return True
         except Exception as e:
-            logger.error(f"API 密钥验证失败: {str(e)}")
+            logger.warning(f"API 密钥验证失败: {str(e)}")
             return False
 
     def get_available_models(self) -> List[str]:

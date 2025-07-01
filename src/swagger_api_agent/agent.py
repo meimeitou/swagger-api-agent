@@ -237,13 +237,19 @@ class SwaggerAPIAgent:
             # 3. 初始化大模型客户端
             if self.deepseek_api_key and self.deepseek_api_key != "your_deepseek_api_key_here":
                 logger.info("初始化大模型客户端...")
-                self.llm_client = LLMClient(
-                    api_key=self.deepseek_api_key, base_url=self.deepseek_api_url, model=self.deepseek_model
-                )
+                try:
+                    self.llm_client = LLMClient(
+                        api_key=self.deepseek_api_key, base_url=self.deepseek_api_url, model=self.deepseek_model
+                    )
 
-                # 验证 API 密钥
-                if not self.llm_client.validate_api_key():
-                    logger.warning("DeepSeek API 密钥验证失败，将仅支持手动调用模式")
+                    # 验证 API 密钥（但不阻塞初始化）
+                    if not self.llm_client.validate_api_key():
+                        logger.warning("DeepSeek API 密钥验证失败或服务不可用，将仅支持手动调用模式")
+                        self.llm_client = None
+                    else:
+                        logger.info("DeepSeek API 连接正常")
+                except Exception as e:
+                    logger.warning(f"初始化大模型客户端失败: {str(e)}，将仅支持手动调用模式")
                     self.llm_client = None
             else:
                 logger.warning("未配置 DeepSeek API 密钥，将仅支持手动调用模式")
@@ -276,7 +282,11 @@ class SwaggerAPIAgent:
             return {"success": False, "error": "系统未初始化，请先调用 initialize() 方法"}
 
         if not self.llm_client:
-            return {"success": False, "error": "大模型客户端未配置，请检查 DeepSeek API 密钥"}
+            return {
+                "success": False, 
+                "error": "自然语言处理服务暂时不可用，请尝试直接调用 API 函数",
+                "suggestion": "您可以使用函数列表查看可用的 API 接口并直接调用"
+            }
 
         try:
             logger.info(f"处理自然语言输入: {user_input}")
@@ -641,3 +651,29 @@ class SwaggerAPIAgent:
             "conversation_length": len(self.conversation_history.messages),
             "api_info": self.get_api_info() if self.is_initialized else {},
         }
+
+    def get_service_status(self) -> Dict[str, Any]:
+        """
+        获取服务状态
+        
+        Returns:
+            服务状态信息
+        """
+        status = {
+            "initialized": self.is_initialized,
+            "openapi_parser": self.parser is not None,
+            "api_caller": self.api_caller is not None,
+            "llm_client": self.llm_client is not None,
+            "natural_language_enabled": self.llm_client is not None,
+            "last_error": self.last_error
+        }
+        
+        if self.parser:
+            api_info = self.parser.get_api_info()
+            status.update({
+                "api_title": api_info.get("title", "Unknown"),
+                "api_version": api_info.get("version", "Unknown"),
+                "endpoints_count": api_info.get("endpoints_count", 0)
+            })
+        
+        return status

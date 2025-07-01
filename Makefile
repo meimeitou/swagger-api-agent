@@ -63,21 +63,11 @@ docs:  ## 生成文档
 	@echo "文档位于 docs/ 目录"
 	@echo "API 文档: http://localhost:5000 (启动 swagger-web-api)"
 
-run-cli:  ## 运行 CLI
-	poetry run swagger-api-agent
-
 run-web:  ## 运行 Web API
 	poetry run swagger-web-api --host 0.0.0.0 --port 5000
 
 run-mock:  ## 运行 Mock 服务器
 	poetry run python scripts/mock_server.py
-
-demo:  ## 运行演示
-	@echo "启动 Mock 服务器..."
-	poetry run python scripts/mock_server.py &
-	@sleep 2
-	@echo "运行 CLI 演示..."
-	poetry run swagger-api-agent --api-url http://localhost:8080
 
 stop-all:  ## 停止所有服务
 	pkill -f "mock_server.py" || true
@@ -142,8 +132,8 @@ format-pip:  ## 使用 pip 环境进行代码格式化 (兼容性)
 docker-build:  ## 构建 Docker 镜像
 	./docker.sh build
 
-docker-run-cli:  ## 运行 Docker CLI 模式
-	./docker.sh run-cli
+docker-run-web:  ## 运行 Docker Web API 模式
+	./docker.sh run-web
 
 docker-run-web:  ## 运行 Docker Web API 模式
 	./docker.sh run-web

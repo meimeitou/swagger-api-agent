@@ -117,6 +117,8 @@ export interface ConversationMessage {
 export interface HealthResponse {
   status: string;
   agent_initialized: boolean;
+  natural_language_enabled?: boolean;
+  service_details?: Record<string, unknown>;
   timestamp?: string;
   api_title?: string;
   api_version?: string;

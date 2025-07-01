@@ -15,9 +15,11 @@ const ConnectionStatus = () => {
     }
     
     if (state.isConnected && state.health?.agent_initialized) {
+      // 检查自然语言处理是否可用
+      const nlpEnabled = state.health?.natural_language_enabled !== false;
       return {
-        label: '已连接',
-        color: 'success' as const,
+        label: nlpEnabled ? '已连接' : '部分功能不可用',
+        color: nlpEnabled ? 'success' as const : 'warning' as const,
         icon: <CheckCircle />,
       };
     }

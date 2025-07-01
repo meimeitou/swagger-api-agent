@@ -29,11 +29,6 @@ const FunctionsList = () => {
     setExpandedItem(expandedItem === functionName ? null : functionName);
   };
 
-  const handleFunctionSelect = (functionName: string) => {
-    // 这里可以添加选择函数的逻辑，比如填充到聊天输入框
-    console.log('Selected function:', functionName);
-  };
-
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -125,8 +120,7 @@ const FunctionsList = () => {
                     <Chip
                       label="使用此函数"
                       size="small"
-                      clickable
-                      onClick={() => handleFunctionSelect(func.name)}
+                      disabled
                       sx={{ fontSize: '0.7rem' }}
                     />
                   </Box>

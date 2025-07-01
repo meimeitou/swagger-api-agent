@@ -37,12 +37,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setError(null);
 
     try {
-      console.log('尝试登录用户:', username);
       const response = await apiService.login({ username, password });
-      console.log('登录响应:', response);
       
       if (response.success) {
-        console.log('登录成功，JWT token已保存');
         onLoginSuccess();
       } else {
         setError(response.error || '登录失败，请检查用户名和密码');

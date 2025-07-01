@@ -500,6 +500,13 @@ const ChatInterface = () => {
         <div ref={messagesEndRef} />
       </Box>
 
+      {/* LLM 状态提示 */}
+      {state.isConnected && state.health?.natural_language_enabled === false && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          自然语言处理服务暂时不可用，您可以通过"函数列表"标签页直接调用 API 接口
+        </Alert>
+      )}
+
       {/* 输入区域 */}
       <Box sx={{ 
         display: 'flex', 
@@ -510,18 +517,27 @@ const ChatInterface = () => {
           fullWidth
           multiline
           maxRows={4}
-          placeholder="输入您的问题或需求..."
+          placeholder={
+            state.health?.natural_language_enabled === false 
+              ? "自然语言处理服务暂不可用，请使用函数列表"
+              : "输入您的问题或需求..."
+          }
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           onKeyPress={handleKeyPress}
-          disabled={!state.isConnected || isProcessing}
+          disabled={!state.isConnected || isProcessing || state.health?.natural_language_enabled === false}
           variant="outlined"
           size="small"
         />
         <Button
           variant="contained"
           onClick={handleSendMessage}
-          disabled={!inputMessage.trim() || !state.isConnected || isProcessing}
+          disabled={
+            !inputMessage.trim() || 
+            !state.isConnected || 
+            isProcessing || 
+            state.health?.natural_language_enabled === false
+          }
           sx={{ minWidth: 'auto', px: 2 }}
         >
           {isProcessing ? <CircularProgress size={20} /> : <Send />}

@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-一个智能的自动化 API 调用工具，支持用自然语言描述需求，自动选择并调用 Swagger/OpenAPI 文档中定义的接口。
+一个智能的 API 调用代理服务，通过 Web API 接口提供自然语言调用 Swagger/OpenAPI 文档中定义的接口功能。
 
 ## 🚀 功能特性
 
@@ -13,7 +13,7 @@
 - **Function Calling**: 基于大模型的 Function Calling 功能，精确匹配 API 接口
 - **API 调用透明化**: 执行前自动显示要调用的接口和参数信息，增强调用过程的可见性
 - **用户确认机制**: 可选的执行前用户确认，确保 API 调用的安全性和可控性
-- **多种调用方式**: 支持自然语言调用、直接函数调用、命令行工具、Web API 等
+- **多种调用方式**: 支持自然语言调用、直接函数调用、Web API 接口
 - **完整的错误处理**: 详细的错误信息和调试支持
 - **对话历史**: 支持上下文对话，记录调用历史
 - **灵活配置**: 支持多种认证方式和自定义配置
@@ -105,8 +105,8 @@ make format
 # 构建项目
 make build
 
-# 运行 CLI
-make run-cli
+# 运行 Web API
+make run-web
 
 # 运行 Web API
 make run-web
@@ -173,30 +173,11 @@ REQUIRE_USER_CONFIRMATION=false
 
 ## 🎯 快速开始
 
-### 命令行使用
-
-```bash
-# 启动交互模式
-swagger-api-agent
-
-# 使用自定义配置
-swagger-api-agent --openapi your-api.yaml --api-url http://your-api.com
-
-# 直接调用函数
-swagger-api-agent --call getUsers --params '{"limit": 5}'
-
-# 启用用户确认
-swagger-api-agent --require-confirmation
-
-# 显示可用函数
-swagger-api-agent --list-functions
-```
-
 ### Web API 使用
 
 ```bash
 # 启动 Web 服务
-swagger-web-api --host 0.0.0.0 --port 5000 --api-url http://localhost:8080
+swagger-web-api --host 0.0.0.0 --port 5000
 
 # 或使用 Python 模块
 python -m swagger_api_agent.web_api --port 5000
@@ -213,7 +194,7 @@ make run-full-stack-with-auth
 **默认登录信息**：
 
 - 用户名: `admin`
-- 密码: `password123`
+- 密码: `admin123`
 
 ### 多用户认证功能
 
@@ -243,7 +224,7 @@ swagger-api-agent/
 │   ├── __init__.py           # 包初始化，导出主要接口
 │   ├── agent.py              # 核心 Agent 类，整合所有功能
 │   ├── api_caller.py         # API 调用器，负责 HTTP 请求
-│   ├── cli.py                # 命令行界面实现
+│   ├── web_api.py            # Web API 接口实现
 │   ├── config.py             # 配置管理和环境变量
 │   ├── llm_client.py         # 大语言模型客户端
 │   ├── openapi_parser.py     # OpenAPI 文档解析器

@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "swagger-api-agent"
 version = "1.0.0"
-description = "自动化自然语言调用 API 接口的智能代理"
+description = "智能 API 代理 - 通过 Web API 接口提供自然语言调用 API 服务"
 authors = ["Swagger API Agent Team <team@swagger-api-agent.com>"]
 readme = "README.md"
 license = "MIT"
@@ -22,7 +22,7 @@ keywords = [
     "automation",
     "deepseek",
     "flask",
-    "cli"
+    "web-api"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -79,7 +79,6 @@ requests-mock = "^1.10"
 pytest-asyncio = "^0.21"
 
 [tool.poetry.scripts]
-swagger-api-agent = "swagger_api_agent.cli:main"
 swagger-web-api = "swagger_api_agent.web_api:main"
 
 [tool.black]

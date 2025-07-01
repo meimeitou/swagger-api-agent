@@ -184,12 +184,19 @@ def health_check():
                     api_token=os.getenv("API_TOKEN"),
                     deepseek_api_key=os.getenv("DEEPSEEK_API_KEY")
                 )
-                # 检查agent是否已初始化
+                # 检查agent是否已初始化并获取详细状态
                 agent_initialized = agent.is_initialized if hasattr(agent, 'is_initialized') else bool(agent)
+                
+                # 获取服务状态详情
+                service_status = agent.get_service_status() if hasattr(agent, 'get_service_status') else {}
+                
                 logger.info(f"用户 {username} 的 agent 初始化状态: {agent_initialized}")
+                if not service_status.get('natural_language_enabled', True):
+                    logger.warning(f"用户 {username} 的自然语言处理服务不可用")
             except Exception as e:
                 logger.warning(f"检查用户 {username} 的 agent 状态时出错: {str(e)}")
                 agent_initialized = False
+                service_status = {}
     
     status = {
         "status": "healthy",
@@ -201,6 +208,13 @@ def health_check():
         "openapi_file": openapi_file,
         "session_stats": session_manager.get_session_stats()
     }
+    
+    # 如果有用户认证，添加详细服务状态
+    if auth_header and agent_initialized and 'service_status' in locals():
+        status.update({
+            "service_details": service_status,
+            "natural_language_enabled": service_status.get('natural_language_enabled', False)
+        })
 
     return jsonify(status)
 
