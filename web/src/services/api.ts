@@ -55,8 +55,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      console.warn('认证失败，清除token并触发登录流程');
       TokenManager.removeToken();
-      // 可以在这里触发重新登录逻辑
+      // 触发认证过期事件，让组件处理登录跳转
       window.dispatchEvent(new CustomEvent('auth-expired'));
     }
     return Promise.reject(error);
@@ -156,7 +157,14 @@ class ApiService {
 
   // 检查是否已登录
   isAuthenticated(): boolean {
-    return TokenManager.isTokenValid();
+    const isValid = TokenManager.isTokenValid();
+    if (!isValid && TokenManager.getToken()) {
+      // 如果token存在但无效（过期），清除它
+      console.warn('Token 已过期，清除无效token');
+      TokenManager.removeToken();
+      window.dispatchEvent(new CustomEvent('auth-expired'));
+    }
+    return isValid;
   }
 
   // 健康检查

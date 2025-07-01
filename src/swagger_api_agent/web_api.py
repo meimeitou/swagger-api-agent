@@ -16,6 +16,7 @@ from flask import Flask, jsonify, request
 # from flask_cors import CORS
 
 from .agent import SwaggerAPIAgent
+from .user_session_manager import get_session_manager, get_or_create_user_agent
 from . import config
 
 # 添加项目根目录到 Python 路径
@@ -53,8 +54,8 @@ jsonify = custom_jsonify
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 全局 agent 实例
-agent: SwaggerAPIAgent = None
+# 用户会话管理器
+session_manager = get_session_manager()
 
 
 def generate_jwt_token(username: str) -> str:
@@ -98,36 +99,48 @@ def require_auth(f):
         
         # 将用户信息添加到请求上下文
         request.current_user = verification_result['username']
+        
+        # 确保用户有对应的agent实例
+        try:
+            agent = get_or_create_user_agent(
+                user_id=request.current_user,
+                openapi_file=os.getenv("OPENAPI_FILE"),
+                api_base_url=os.getenv("API_BASE_URL"),
+                api_token=os.getenv("API_TOKEN"),
+                deepseek_api_key=os.getenv("DEEPSEEK_API_KEY")
+            )
+            request.current_agent = agent
+        except Exception as e:
+            logger.error(f"为用户 {request.current_user} 创建agent失败: {str(e)}")
+            return jsonify({'success': False, 'error': f'用户会话初始化失败: {str(e)}'}), 503
+        
         return f(*args, **kwargs)
     
     return decorated_function
 
 
 def init_agent():
-    """初始化 agent"""
-    global agent
-
+    """初始化默认配置（用于健康检查等）"""
     try:
-        # 从环境变量或参数获取配置
+        # 这个函数主要用于验证配置的有效性
+        # 实际的agent实例会在用户登录时按需创建
+        
+        # 检查必要的配置项
         api_base_url = os.getenv("API_BASE_URL")
-        api_token = os.getenv("API_TOKEN")
         openapi_file = os.getenv("OPENAPI_FILE")
-
-        agent = SwaggerAPIAgent(
-            api_base_url=api_base_url, 
-            api_token=api_token,
-            openapi_file=openapi_file
-        )
-
-        if not agent.initialize():
-            logger.error(f"Agent 初始化失败: {agent.last_error}")
+        
+        if not api_base_url:
+            logger.warning("未设置 API_BASE_URL 环境变量")
+        
+        if not openapi_file or not Path(openapi_file).exists():
+            logger.warning(f"OpenAPI 文档文件不存在或未设置: {openapi_file}")
             return False
 
-        logger.info("Agent 初始化成功")
+        logger.info("Agent 配置验证成功")
         return True
 
     except Exception as e:
-        logger.error(f"初始化 Agent 异常: {str(e)}")
+        logger.error(f"验证 Agent 配置异常: {str(e)}")
         return False
 
 
@@ -147,25 +160,47 @@ def internal_error(error):
 @app.route("/health", methods=["GET"])
 def health_check():
     """健康检查"""
-    global agent
-
+    # 检查配置有效性
+    api_base_url = os.getenv("API_BASE_URL")
+    openapi_file = os.getenv("OPENAPI_FILE")
+    config_valid = bool(api_base_url and openapi_file and Path(openapi_file).exists())
+    
+    # 检查是否有认证用户，如果有则检查其agent状态
+    agent_initialized = False
+    auth_header = request.headers.get('Authorization')
+    
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.split(' ')[1]
+        verification_result = verify_jwt_token(token)
+        
+        if verification_result['success']:
+            username = verification_result['username']
+            try:
+                # 尝试获取或创建用户的agent
+                agent = get_or_create_user_agent(
+                    user_id=username,
+                    openapi_file=openapi_file,
+                    api_base_url=api_base_url,
+                    api_token=os.getenv("API_TOKEN"),
+                    deepseek_api_key=os.getenv("DEEPSEEK_API_KEY")
+                )
+                # 检查agent是否已初始化
+                agent_initialized = agent.is_initialized if hasattr(agent, 'is_initialized') else bool(agent)
+                logger.info(f"用户 {username} 的 agent 初始化状态: {agent_initialized}")
+            except Exception as e:
+                logger.warning(f"检查用户 {username} 的 agent 状态时出错: {str(e)}")
+                agent_initialized = False
+    
     status = {
         "status": "healthy",
-        "agent_initialized": agent is not None and agent.is_initialized,
-        "timestamp": agent.conversation_history.messages[-1]["timestamp"]
-        if agent and agent.conversation_history.messages
-        else None,
+        "service": "Swagger API Agent",
+        "timestamp": datetime.now().isoformat(),
+        "agent_initialized": agent_initialized,
+        "config_valid": config_valid,
+        "api_base_url": api_base_url,
+        "openapi_file": openapi_file,
+        "session_stats": session_manager.get_session_stats()
     }
-
-    if agent and agent.is_initialized:
-        api_info = agent.get_api_info()
-        status.update(
-            {
-                "api_title": api_info.get("title", "Unknown"),
-                "api_version": api_info.get("version", "Unknown"),
-                "endpoints_count": api_info.get("endpoints_count", 0),
-            }
-        )
 
     return jsonify(status)
 
@@ -205,10 +240,7 @@ def login():
 @require_auth
 def process_natural_language():
     """处理自然语言输入"""
-    global agent
-
-    if not agent or not agent.is_initialized:
-        return jsonify({"success": False, "error": "Agent 未初始化"}), 503
+    agent = request.current_agent
 
     try:
         data = request.get_json()
@@ -218,8 +250,11 @@ def process_natural_language():
 
         user_message = data["message"]
         context = data.get("context", {})
+        
+        # 添加用户信息到上下文
+        context["user_id"] = request.current_user
 
-        logger.info(f"处理自然语言输入: {user_message}")
+        logger.info(f"用户 {request.current_user} 处理自然语言输入: {user_message}")
 
         execution_context = {"is_cli_mode": False}
         result = agent.process_natural_language(user_message, context, execution_context)
@@ -231,7 +266,8 @@ def process_natural_language():
             "data": result.get("function_calls", None) or result.get("data", None),
             "function_calls": result.get("function_calls", []),
             "usage": result.get("usage", None),
-            "timestamp": result.get("timestamp", None)
+            "timestamp": datetime.now().isoformat(),
+            "user_id": request.current_user
         }
 
         # 如果有错误，包含错误信息
@@ -241,14 +277,15 @@ def process_natural_language():
         return jsonify(response_data)
 
     except Exception as e:
-        logger.error(f"处理自然语言输入异常: {str(e)}")
+        logger.error(f"用户 {request.current_user} 处理自然语言输入异常: {str(e)}")
         return jsonify({
             "success": False, 
             "error": f"处理异常: {str(e)}",
             "message": "",
             "data": None,
             "function_calls": [],
-            "usage": None
+            "usage": None,
+            "user_id": request.current_user
         }), 500
 
 
@@ -256,10 +293,7 @@ def process_natural_language():
 @require_auth
 def call_function_directly():
     """直接调用函数"""
-    global agent
-
-    if not agent or not agent.is_initialized:
-        return jsonify({"success": False, "error": "Agent 未初始化"}), 503
+    agent = request.current_agent
 
     try:
         data = request.get_json()
@@ -270,92 +304,226 @@ def call_function_directly():
         function_name = data["function_name"]
         parameters = data.get("parameters", {})
 
-        logger.info(f"直接调用函数: {function_name}")
+        logger.info(f"用户 {request.current_user} 直接调用函数: {function_name}")
 
         result = agent.call_api_directly(function_name, parameters)
+        result["user_id"] = request.current_user
 
         return jsonify(result)
 
     except Exception as e:
-        logger.error(f"直接调用函数异常: {str(e)}")
-        return jsonify({"success": False, "error": f"调用异常: {str(e)}"}), 500
+        logger.error(f"用户 {request.current_user} 直接调用函数异常: {str(e)}")
+        return jsonify({
+            "success": False, 
+            "error": f"调用异常: {str(e)}",
+            "user_id": request.current_user
+        }), 500
 
 
 @app.route("/api/functions", methods=["GET"])
 @require_auth
 def get_functions():
     """获取可用函数列表"""
-    global agent
-
-    if not agent or not agent.is_initialized:
-        return jsonify({"success": False, "error": "Agent 未初始化"}), 503
+    agent = request.current_agent
 
     try:
         functions = agent.get_available_functions()
 
-        return jsonify({"success": True, "functions": functions, "count": len(functions)})
+        return jsonify({
+            "success": True, 
+            "functions": functions, 
+            "count": len(functions),
+            "user_id": request.current_user
+        })
 
     except Exception as e:
-        logger.error(f"获取函数列表异常: {str(e)}")
-        return jsonify({"success": False, "error": f"获取异常: {str(e)}"}), 500
+        logger.error(f"用户 {request.current_user} 获取函数列表异常: {str(e)}")
+        return jsonify({
+            "success": False, 
+            "error": f"获取异常: {str(e)}",
+            "user_id": request.current_user
+        }), 500
 
 
 @app.route("/api/info", methods=["GET"])
 @require_auth
 def get_api_info():
     """获取 API 信息"""
-    global agent
-
-    if not agent or not agent.is_initialized:
-        return jsonify({"success": False, "error": "Agent 未初始化"}), 503
+    agent = request.current_agent
 
     try:
         api_info = agent.get_api_info()
         status = agent.get_status()
 
-        return jsonify({"success": True, "api_info": api_info, "agent_status": status})
+        return jsonify({
+            "success": True, 
+            "api_info": api_info, 
+            "agent_status": status,
+            "user_id": request.current_user
+        })
 
     except Exception as e:
-        logger.error(f"获取 API 信息异常: {str(e)}")
-        return jsonify({"success": False, "error": f"获取异常: {str(e)}"}), 500
+        logger.error(f"用户 {request.current_user} 获取 API 信息异常: {str(e)}")
+        return jsonify({
+            "success": False, 
+            "error": f"获取异常: {str(e)}",
+            "user_id": request.current_user
+        }), 500
 
 
 @app.route("/api/history", methods=["GET"])
 @require_auth
 def get_conversation_history():
     """获取对话历史"""
-    global agent
-
-    if not agent or not agent.is_initialized:
-        return jsonify({"success": False, "error": "Agent 未初始化"}), 503
+    agent = request.current_agent
 
     try:
         history = agent.get_conversation_history()
 
-        return jsonify({"success": True, "history": history, "count": len(history)})
+        return jsonify({
+            "success": True, 
+            "history": history, 
+            "count": len(history),
+            "user_id": request.current_user
+        })
 
     except Exception as e:
-        logger.error(f"获取对话历史异常: {str(e)}")
-        return jsonify({"success": False, "error": f"获取异常: {str(e)}"}), 500
+        logger.error(f"用户 {request.current_user} 获取对话历史异常: {str(e)}")
+        return jsonify({
+            "success": False, 
+            "error": f"获取异常: {str(e)}",
+            "user_id": request.current_user
+        }), 500
 
 
 @app.route("/api/history", methods=["DELETE"])
 @require_auth
 def clear_conversation_history():
     """清空对话历史"""
-    global agent
-
-    if not agent or not agent.is_initialized:
-        return jsonify({"success": False, "error": "Agent 未初始化"}), 503
+    agent = request.current_agent
 
     try:
         agent.clear_conversation_history()
 
-        return jsonify({"success": True, "message": "对话历史已清空"})
+        return jsonify({
+            "success": True, 
+            "message": "对话历史已清空",
+            "user_id": request.current_user
+        })
 
     except Exception as e:
-        logger.error(f"清空对话历史异常: {str(e)}")
-        return jsonify({"success": False, "error": f"清空异常: {str(e)}"}), 500
+        logger.error(f"用户 {request.current_user} 清空对话历史异常: {str(e)}")
+        return jsonify({
+            "success": False, 
+            "error": f"清空异常: {str(e)}",
+            "user_id": request.current_user
+        }), 500
+
+
+@app.route("/api/session/info", methods=["GET"])
+@require_auth
+def get_session_info():
+    """获取当前用户会话信息"""
+    try:
+        session = session_manager.get_user_session(request.current_user)
+        if session:
+            return jsonify({
+                "success": True,
+                "session_info": session.get_session_info()
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "未找到用户会话"
+            }), 404
+
+    except Exception as e:
+        logger.error(f"获取用户 {request.current_user} 会话信息异常: {str(e)}")
+        return jsonify({
+            "success": False, 
+            "error": f"获取会话信息异常: {str(e)}"
+        }), 500
+
+
+@app.route("/api/session/reset", methods=["POST"])
+@require_auth
+def reset_user_session():
+    """重置当前用户会话（创建新的agent实例）"""
+    try:
+        # 关闭现有会话
+        session_manager.close_user_session(request.current_user)
+        
+        # 创建新会话
+        new_session = session_manager.create_user_session(
+            user_id=request.current_user,
+            openapi_file=os.getenv("OPENAPI_FILE"),
+            api_base_url=os.getenv("API_BASE_URL"),
+            api_token=os.getenv("API_TOKEN"),
+            deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
+            force_new=True
+        )
+        
+        return jsonify({
+            "success": True,
+            "message": "用户会话已重置",
+            "session_info": new_session.get_session_info()
+        })
+
+    except Exception as e:
+        logger.error(f"重置用户 {request.current_user} 会话异常: {str(e)}")
+        return jsonify({
+            "success": False, 
+            "error": f"重置会话异常: {str(e)}"
+        }), 500
+
+
+@app.route("/api/admin/sessions", methods=["GET"])
+@require_auth
+def get_all_sessions():
+    """获取所有会话信息（管理员功能）"""
+    try:
+        # 这里可以添加管理员权限检查
+        # if request.current_user != "admin":
+        #     return jsonify({"success": False, "error": "权限不足"}), 403
+        
+        all_sessions = session_manager.get_all_sessions_info()
+        
+        return jsonify({
+            "success": True,
+            "sessions_info": all_sessions
+        })
+
+    except Exception as e:
+        logger.error(f"获取所有会话信息异常: {str(e)}")
+        return jsonify({
+            "success": False, 
+            "error": f"获取所有会话信息异常: {str(e)}"
+        }), 500
+
+
+@app.route("/api/admin/cleanup", methods=["POST"])
+@require_auth
+def manual_cleanup_sessions():
+    """手动清理过期会话（管理员功能）"""
+    try:
+        # 这里可以添加管理员权限检查
+        # if request.current_user != "admin":
+        #     return jsonify({"success": False, "error": "权限不足"}), 403
+        
+        session_manager.cleanup_expired_sessions()
+        
+        return jsonify({
+            "success": True,
+            "message": "过期会话清理完成",
+            "current_stats": session_manager.get_session_stats()
+        })
+
+    except Exception as e:
+        logger.error(f"手动清理会话异常: {str(e)}")
+        return jsonify({
+            "success": False, 
+            "error": f"清理会话异常: {str(e)}"
+        }), 500
 
 
 @app.route("/", methods=["GET"])
@@ -365,21 +533,50 @@ def index():
         {
             "name": "Swagger API Agent",
             "version": "1.0.0",
-            "description": "自动化自然语言调用 Swagger/OpenAPI 接口服务",
+            "description": "自动化自然语言调用 Swagger/OpenAPI 接口服务 - 支持多用户会话",
+            "features": [
+                "多用户独立会话管理",
+                "JWT 用户认证",
+                "自然语言 API 调用",
+                "对话历史管理",
+                "自动会话清理"
+            ],
             "endpoints": {
-                "POST /api/login": "用户登录，获取JWT token",
-                "POST /api/process": "处理自然语言输入 (需要认证)",
-                "POST /api/call": "直接调用函数 (需要认证)",
-                "GET /api/functions": "获取可用函数列表 (需要认证)",
-                "GET /api/info": "获取 API 信息 (需要认证)",
-                "GET /api/history": "获取对话历史 (需要认证)",
-                "DELETE /api/history": "清空对话历史 (需要认证)",
-                "GET /health": "健康检查",
+                "认证相关": {
+                    "POST /api/login": "用户登录，获取JWT token"
+                },
+                "API 调用": {
+                    "POST /api/process": "处理自然语言输入 (需要认证)",
+                    "POST /api/call": "直接调用函数 (需要认证)",
+                    "GET /api/functions": "获取可用函数列表 (需要认证)",
+                    "GET /api/info": "获取 API 信息 (需要认证)"
+                },
+                "对话管理": {
+                    "GET /api/history": "获取对话历史 (需要认证)",
+                    "DELETE /api/history": "清空对话历史 (需要认证)"
+                },
+                "会话管理": {
+                    "GET /api/session/info": "获取当前用户会话信息 (需要认证)",
+                    "POST /api/session/reset": "重置当前用户会话 (需要认证)"
+                },
+                "管理员功能": {
+                    "GET /api/admin/sessions": "获取所有会话信息 (需要认证)",
+                    "POST /api/admin/cleanup": "手动清理过期会话 (需要认证)"
+                },
+                "系统信息": {
+                    "GET /health": "健康检查"
+                }
             },
             "authentication": {
                 "type": "JWT Bearer Token",
                 "login_endpoint": "/api/login",
-                "header_format": "Authorization: Bearer <token>"
+                "header_format": "Authorization: Bearer <token>",
+                "token_expiration": f"{config.JWT_EXPIRATION_HOURS} hours"
+            },
+            "session_management": {
+                "description": "每个用户登录后都会获得独立的 agent 实例和对话上下文",
+                "session_timeout": "24 hours",
+                "auto_cleanup": "每 1 小时自动清理过期会话"
             }
         }
     )
@@ -390,10 +587,9 @@ def create_app(config=None):
     if config:
         app.config.update(config)
 
-    # 初始化 agent
+    # 验证基础配置
     if not init_agent():
-        logger.error("无法启动服务，Agent 初始化失败")
-        return None
+        logger.warning("配置验证失败，但服务仍将启动（用户登录时按需创建agent）")
 
     return app
 
@@ -424,6 +620,7 @@ def main():
     # 初始化应用
     app = create_app()
     if app is None:
+        logger.error("应用初始化失败")
         sys.exit(1)
 
     logger.info(f"启动 Swagger API Agent Web Server")

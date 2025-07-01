@@ -101,6 +101,25 @@ run-full-stack:  ## 同时运行前后端服务
 	@echo "后端: http://localhost:5000"
 	@echo "按 Ctrl+C 停止所有服务"
 
+run-full-stack-with-auth:  ## 运行完整堆栈并启用认证检查
+	@echo "🚀 启动 Swagger API Agent 完整服务栈（带认证）"
+	@echo "📡 后端服务: http://localhost:5000"
+	@echo "🖥️  前端界面: http://localhost:5173"
+	@echo "🔐 认证功能: 启用自动登录检查和token管理"
+	@echo ""
+	@echo "启动后端服务..."
+	poetry run swagger-web-api --host 0.0.0.0 --port 5000 &
+	@sleep 2
+	@echo "启动前端服务..."
+	cd web && npm run dev &
+	@echo ""
+	@echo "✅ 服务启动完成！"
+	@echo "💡 默认用户名: admin, 密码: password123"
+	@echo "🔄 支持多用户会话管理"
+	@echo "⏰ Token自动过期检查"
+	@echo ""
+	@echo "按 Ctrl+C 停止所有服务"
+
 # 传统 pip 方式的兼容命令 (不推荐)
 install-pip:  ## 使用 pip 安装 (兼容性)
 	pip install -e .

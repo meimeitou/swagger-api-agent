@@ -16,6 +16,7 @@ Swagger API Agent - 自动化自然语言调用 API 接口
 """
 
 from .agent import SwaggerAPIAgent
+from .user_session_manager import UserSessionManager, get_session_manager, get_or_create_user_agent
 from .config import (DEEPSEEK_API_BASE, DEFAULT_API_BASE_URL,
                      DEFAULT_LLM_MODEL, DEFAULT_OPENAPI_FILE,
                      REQUIRE_USER_CONFIRMATION, SHOW_API_CALL_DETAILS)
@@ -27,6 +28,9 @@ __license__ = "MIT"
 
 __all__ = [
     "SwaggerAPIAgent",
+    "UserSessionManager",
+    "get_session_manager", 
+    "get_or_create_user_agent",
     "DEFAULT_OPENAPI_FILE",
     "DEFAULT_API_BASE_URL",
     "DEFAULT_LLM_MODEL",

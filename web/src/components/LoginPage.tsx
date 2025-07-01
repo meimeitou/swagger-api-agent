@@ -37,22 +37,29 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setError(null);
 
     try {
+      console.log('尝试登录用户:', username);
       const response = await apiService.login({ username, password });
+      console.log('登录响应:', response);
       
       if (response.success) {
+        console.log('登录成功，JWT token已保存');
         onLoginSuccess();
       } else {
-        setError(response.error || '登录失败');
+        setError(response.error || '登录失败，请检查用户名和密码');
       }
     } catch (err: unknown) {
       console.error('Login error:', err);
       const error = err as { response?: { status?: number; data?: { error?: string } } };
       if (error.response?.status === 401) {
         setError('用户名或密码错误');
+      } else if (error.response?.status === 500) {
+        setError('服务器内部错误，请稍后重试');
+      } else if (error.response?.status === 503) {
+        setError('服务暂时不可用，请检查后端服务是否正常运行');
       } else if (error.response?.data?.error) {
         setError(error.response.data.error);
       } else {
-        setError('网络错误，请检查连接');
+        setError('网络连接失败，请检查网络连接或后端服务状态');
       }
     } finally {
       setIsLoading(false);

@@ -26,6 +26,7 @@ const MainLayout = () => {
   const { state, dispatch } = useApp();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [leftPanelTab, setLeftPanelTab] = useState(0);
+  const [tokenWarningOpen, setTokenWarningOpen] = useState(false);
 
   // 处理左侧面板Tab切换
   const handleLeftPanelTabChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -38,6 +39,14 @@ const MainLayout = () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       try {
         console.log('开始连接检查...');
+        
+        // 先检查认证状态
+        if (!apiService.isAuthenticated()) {
+          console.warn('用户未认证，跳过连接检查');
+          dispatch({ type: 'SET_AUTHENTICATED', payload: false });
+          return;
+        }
+        
         const health = await apiService.healthCheck();
         console.log('健康检查成功:', health);
         dispatch({ type: 'SET_HEALTH', payload: health });
@@ -65,6 +74,17 @@ const MainLayout = () => {
       } catch (error) {
         console.error('Connection failed:', error);
         dispatch({ type: 'SET_CONNECTED', payload: false });
+        
+        // 检查是否是认证错误
+        if (error && typeof error === 'object' && 'response' in error) {
+          const httpError = error as { response?: { status?: number } };
+          if (httpError.response?.status === 401) {
+            console.warn('认证失败，用户需要重新登录');
+            dispatch({ type: 'SET_AUTHENTICATED', payload: false });
+            return;
+          }
+        }
+        
         dispatch({ type: 'SET_ERROR', payload: '无法连接到后端服务' });
         setSnackbarOpen(true);
       } finally {
@@ -73,6 +93,24 @@ const MainLayout = () => {
     };
 
     checkConnection();
+    
+    // 监听token即将过期事件
+    const handleTokenExpiring = (event: CustomEvent) => {
+      const { timeLeft, expiryTime } = event.detail;
+      console.warn('Token即将过期:', { timeLeft, expiryTime });
+      setTokenWarningOpen(true);
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: `登录即将过期，将在 ${Math.ceil(timeLeft / 60000)} 分钟后自动登出` 
+      });
+      setSnackbarOpen(true);
+    };
+
+    window.addEventListener('token-expiring', handleTokenExpiring as EventListener);
+
+    return () => {
+      window.removeEventListener('token-expiring', handleTokenExpiring as EventListener);
+    };
   }, [dispatch]);
 
   const handleCloseSnackbar = () => {
