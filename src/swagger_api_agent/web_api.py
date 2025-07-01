@@ -7,12 +7,16 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime, timedelta
+from functools import wraps
 from pathlib import Path
 
+import jwt
 from flask import Flask, jsonify, request
 # from flask_cors import CORS
 
 from .agent import SwaggerAPIAgent
+from . import config
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -53,6 +57,52 @@ logger = logging.getLogger(__name__)
 agent: SwaggerAPIAgent = None
 
 
+def generate_jwt_token(username: str) -> str:
+    """生成 JWT token"""
+    payload = {
+        'username': username,
+        'exp': datetime.utcnow() + timedelta(hours=config.JWT_EXPIRATION_HOURS),
+        'iat': datetime.utcnow()
+    }
+    return jwt.encode(payload, config.JWT_SECRET_KEY, algorithm='HS256')
+
+
+def verify_jwt_token(token: str) -> dict:
+    """验证 JWT token"""
+    try:
+        payload = jwt.decode(token, config.JWT_SECRET_KEY, algorithms=['HS256'])
+        return {'success': True, 'username': payload['username']}
+    except jwt.ExpiredSignatureError:
+        return {'success': False, 'error': 'Token 已过期'}
+    except jwt.InvalidTokenError:
+        return {'success': False, 'error': 'Token 无效'}
+
+
+def require_auth(f):
+    """JWT 认证装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        
+        if not auth_header:
+            return jsonify({'success': False, 'error': '缺少 Authorization 头'}), 401
+        
+        if not auth_header.startswith('Bearer '):
+            return jsonify({'success': False, 'error': 'Authorization 头格式错误，应为: Bearer <token>'}), 401
+        
+        token = auth_header.split(' ')[1]
+        verification_result = verify_jwt_token(token)
+        
+        if not verification_result['success']:
+            return jsonify({'success': False, 'error': verification_result['error']}), 401
+        
+        # 将用户信息添加到请求上下文
+        request.current_user = verification_result['username']
+        return f(*args, **kwargs)
+    
+    return decorated_function
+
+
 def init_agent():
     """初始化 agent"""
     global agent
@@ -60,9 +110,14 @@ def init_agent():
     try:
         # 从环境变量或参数获取配置
         api_base_url = os.getenv("API_BASE_URL")
+        api_token = os.getenv("API_TOKEN")
         openapi_file = os.getenv("OPENAPI_FILE")
 
-        agent = SwaggerAPIAgent(api_base_url=api_base_url, openapi_file=openapi_file)
+        agent = SwaggerAPIAgent(
+            api_base_url=api_base_url, 
+            api_token=api_token,
+            openapi_file=openapi_file
+        )
 
         if not agent.initialize():
             logger.error(f"Agent 初始化失败: {agent.last_error}")
@@ -115,7 +170,39 @@ def health_check():
     return jsonify(status)
 
 
+@app.route("/api/login", methods=["POST"])
+def login():
+    """用户登录，验证用户名密码并返回 JWT token"""
+    try:
+        data = request.get_json()
+        
+        if not data or "username" not in data or "password" not in data:
+            return jsonify({"success": False, "error": "缺少用户名或密码"}), 400
+        
+        username = data["username"]
+        password = data["password"]
+        
+        # 验证用户名密码
+        if username != config.WEB_API_USERNAME or password != config.WEB_API_PASSWORD:
+            return jsonify({"success": False, "error": "用户名或密码错误"}), 401
+        
+        # 生成 JWT token
+        token = generate_jwt_token(username)
+        
+        return jsonify({
+            "success": True,
+            "message": "登录成功",
+            "token": token,
+            "expires_in": config.JWT_EXPIRATION_HOURS * 3600  # 秒
+        })
+        
+    except Exception as e:
+        logger.error(f"登录异常: {str(e)}")
+        return jsonify({"success": False, "error": f"登录异常: {str(e)}"}), 500
+
+
 @app.route("/api/process", methods=["POST"])
+@require_auth
 def process_natural_language():
     """处理自然语言输入"""
     global agent
@@ -166,6 +253,7 @@ def process_natural_language():
 
 
 @app.route("/api/call", methods=["POST"])
+@require_auth
 def call_function_directly():
     """直接调用函数"""
     global agent
@@ -194,6 +282,7 @@ def call_function_directly():
 
 
 @app.route("/api/functions", methods=["GET"])
+@require_auth
 def get_functions():
     """获取可用函数列表"""
     global agent
@@ -212,6 +301,7 @@ def get_functions():
 
 
 @app.route("/api/info", methods=["GET"])
+@require_auth
 def get_api_info():
     """获取 API 信息"""
     global agent
@@ -231,6 +321,7 @@ def get_api_info():
 
 
 @app.route("/api/history", methods=["GET"])
+@require_auth
 def get_conversation_history():
     """获取对话历史"""
     global agent
@@ -249,6 +340,7 @@ def get_conversation_history():
 
 
 @app.route("/api/history", methods=["DELETE"])
+@require_auth
 def clear_conversation_history():
     """清空对话历史"""
     global agent
@@ -266,32 +358,6 @@ def clear_conversation_history():
         return jsonify({"success": False, "error": f"清空异常: {str(e)}"}), 500
 
 
-@app.route("/api/auth", methods=["POST"])
-def set_api_auth():
-    """设置 API 认证"""
-    global agent
-
-    if not agent or not agent.is_initialized:
-        return jsonify({"success": False, "error": "Agent 未初始化"}), 503
-
-    try:
-        data = request.get_json()
-
-        if not data or "auth_type" not in data:
-            return jsonify({"success": False, "error": "缺少 auth_type 参数"}), 400
-
-        auth_type = data["auth_type"]
-        auth_params = {k: v for k, v in data.items() if k != "auth_type"}
-
-        agent.set_api_auth(auth_type, **auth_params)
-
-        return jsonify({"success": True, "message": f"{auth_type} 认证设置成功"})
-
-    except Exception as e:
-        logger.error(f"设置认证异常: {str(e)}")
-        return jsonify({"success": False, "error": f"设置异常: {str(e)}"}), 500
-
-
 @app.route("/", methods=["GET"])
 def index():
     """首页"""
@@ -301,15 +367,20 @@ def index():
             "version": "1.0.0",
             "description": "自动化自然语言调用 Swagger/OpenAPI 接口服务",
             "endpoints": {
-                "POST /api/process": "处理自然语言输入",
-                "POST /api/call": "直接调用函数",
-                "GET /api/functions": "获取可用函数列表",
-                "GET /api/info": "获取 API 信息",
-                "GET /api/history": "获取对话历史",
-                "DELETE /api/history": "清空对话历史",
-                "POST /api/auth": "设置 API 认证",
+                "POST /api/login": "用户登录，获取JWT token",
+                "POST /api/process": "处理自然语言输入 (需要认证)",
+                "POST /api/call": "直接调用函数 (需要认证)",
+                "GET /api/functions": "获取可用函数列表 (需要认证)",
+                "GET /api/info": "获取 API 信息 (需要认证)",
+                "GET /api/history": "获取对话历史 (需要认证)",
+                "DELETE /api/history": "清空对话历史 (需要认证)",
                 "GET /health": "健康检查",
             },
+            "authentication": {
+                "type": "JWT Bearer Token",
+                "login_endpoint": "/api/login",
+                "header_format": "Authorization: Bearer <token>"
+            }
         }
     )
 
@@ -337,6 +408,7 @@ def main():
     parser.add_argument("--port", type=int, default=5000, help="服务器端口")
     parser.add_argument("--debug", action="store_true", help="启用调试模式")
     parser.add_argument("--api-url", type=str, help="API 基础 URL")
+    parser.add_argument("--api-token", type=str, help="API 认证 Token (Bearer Token)")
     parser.add_argument("--openapi", type=str, help="OpenAPI 文档文件路径")
 
     args = parser.parse_args()
@@ -344,6 +416,8 @@ def main():
     # 设置环境变量
     if args.api_url:
         os.environ["API_BASE_URL"] = args.api_url
+    if args.api_token:
+        os.environ["API_TOKEN"] = args.api_token
     if args.openapi:
         os.environ["OPENAPI_FILE"] = args.openapi
 

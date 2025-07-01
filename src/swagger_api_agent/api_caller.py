@@ -29,6 +29,56 @@ class APIResponse(BaseModel):
     url: str = ""
     method: str = ""
 
+    def format_as_markdown(self) -> str:
+        """将 API 响应格式化为 Markdown"""
+        markdown_lines = []
+        
+        # 标题
+        status_icon = "✅" if self.success else "❌"
+        markdown_lines.append(f"## {status_icon} API 调用结果")
+        markdown_lines.append("")
+        
+        # 基本信息
+        markdown_lines.append(f"**方法**: `{self.method}`")
+        markdown_lines.append(f"**URL**: `{self.url}`")
+        markdown_lines.append(f"**状态码**: `{self.status_code}`")
+        markdown_lines.append(f"**结果**: {'成功' if self.success else '失败'}")
+        markdown_lines.append("")
+        
+        # 错误信息
+        if self.error:
+            markdown_lines.append("### ❌ 错误信息")
+            markdown_lines.append(f"```")
+            markdown_lines.append(self.error)
+            markdown_lines.append(f"```")
+            markdown_lines.append("")
+        
+        # 响应数据
+        if self.data is not None:
+            markdown_lines.append("### 📄 响应数据")
+            if isinstance(self.data, (dict, list)):
+                markdown_lines.append("```json")
+                markdown_lines.append(json.dumps(self.data, indent=2, ensure_ascii=False))
+                markdown_lines.append("```")
+            else:
+                markdown_lines.append("```")
+                markdown_lines.append(str(self.data))
+                markdown_lines.append("```")
+            markdown_lines.append("")
+        
+        # 响应头（如果有重要的）
+        important_headers = ['content-type', 'content-length', 'server', 'date']
+        filtered_headers = {k.lower(): v for k, v in self.headers.items() 
+                          if k.lower() in important_headers}
+        
+        if filtered_headers:
+            markdown_lines.append("### 📋 响应头")
+            for key, value in filtered_headers.items():
+                markdown_lines.append(f"- **{key.title()}**: `{value}`")
+            markdown_lines.append("")
+        
+        return "\n".join(markdown_lines)
+
 
 class APICallError(Exception):
     """API 调用异常"""

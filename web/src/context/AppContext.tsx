@@ -4,6 +4,15 @@ import type { ApiFunction, ConversationMessage, HealthResponse } from '../servic
 
 // 应用状态接口
 export interface AppState {
+  // 认证状态
+  isAuthenticated: boolean;
+  
+  // 用户信息
+  userInfo: {
+    username: string;
+    loginTime: string;
+  } | null;
+  
   // 连接状态
   isConnected: boolean;
   isLoading: boolean;
@@ -22,6 +31,8 @@ export interface AppState {
 
 // 初始状态
 const initialState: AppState = {
+  isAuthenticated: false,
+  userInfo: null,
   isConnected: false,
   isLoading: false,
   health: null,
@@ -33,6 +44,8 @@ const initialState: AppState = {
 
 // Action类型
 export type AppAction =
+  | { type: 'SET_AUTHENTICATED'; payload: boolean }
+  | { type: 'SET_USER_INFO'; payload: { username: string; loginTime: string } | null }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_CONNECTED'; payload: boolean }
   | { type: 'SET_HEALTH'; payload: HealthResponse }
@@ -46,6 +59,10 @@ export type AppAction =
 // Reducer函数
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case 'SET_AUTHENTICATED':
+      return { ...state, isAuthenticated: action.payload };
+    case 'SET_USER_INFO':
+      return { ...state, userInfo: action.payload };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     case 'SET_CONNECTED':

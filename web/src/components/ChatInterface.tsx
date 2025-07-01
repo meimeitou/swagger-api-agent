@@ -1,4 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import 'highlight.js/styles/github.css'; // 代码高亮样式
 import {
   Box,
   TextField,
@@ -152,6 +156,28 @@ const ChatInterface = () => {
     }
   };
 
+  const isMarkdownContent = (content: string) => {
+    // 检查常见的 Markdown 语法特征
+    const markdownPatterns = [
+      /#{1,6}\s+/, // 标题
+      /\*\*.*\*\*/, // 粗体
+      /\*.*\*/, // 斜体
+      /```[\s\S]*```/, // 代码块
+      /`.*`/, // 内联代码
+      /^\s*[-*+]\s+/m, // 列表
+      /^\s*\d+\.\s+/m, // 有序列表
+      /\[.*\]\(.*\)/, // 链接
+      /!\[.*\]\(.*\)/, // 图片
+      /^\s*>\s+/m, // 引用
+    ];
+    
+    return markdownPatterns.some(pattern => pattern.test(content));
+  };
+
+  const isJSONContent = (content: string) => {
+    return content.trim().startsWith('{') || content.trim().startsWith('[');
+  };
+
   const isLongContent = (content: string) => {
     return content.length > 500 || content.split('\n').length > 10;
   };
@@ -172,6 +198,125 @@ const ChatInterface = () => {
       // 这里可以添加复制成功的提示
     } catch (err) {
       console.error('Failed to copy:', err);
+    }
+  };
+
+  // 渲染消息内容的组件
+  const renderMessageContent = (content: string) => {
+    const isJSON = isJSONContent(content);
+    const isMarkdown = isMarkdownContent(content);
+
+    if (isJSON) {
+      // JSON 内容使用代码样式显示
+      return (
+        <Typography 
+          variant="body2" 
+          component="pre"
+          sx={{ 
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontFamily: 'monospace',
+            fontSize: '0.8rem',
+            overflow: 'visible',
+            textOverflow: 'unset',
+            display: 'block',
+            width: '100%',
+            maxWidth: 'none',
+            lineHeight: 1.5
+          }}
+        >
+          {formatMessageContent(content)}
+        </Typography>
+      );
+    } else if (isMarkdown) {
+      // Markdown 内容使用 ReactMarkdown 渲染
+      return (
+        <Box sx={{ 
+          '& h1, & h2, & h3, & h4, & h5, & h6': {
+            marginTop: '16px',
+            marginBottom: '8px',
+            fontWeight: 'bold'
+          },
+          '& h1': { fontSize: '1.5rem' },
+          '& h2': { fontSize: '1.3rem' },
+          '& h3': { fontSize: '1.1rem' },
+          '& p': {
+            marginBottom: '8px',
+            lineHeight: 1.6
+          },
+          '& code': {
+            backgroundColor: 'rgba(0, 0, 0, 0.05)',
+            padding: '2px 4px',
+            borderRadius: '3px',
+            fontFamily: 'monospace',
+            fontSize: '0.85em'
+          },
+          '& pre': {
+            backgroundColor: 'rgba(0, 0, 0, 0.05)',
+            padding: '12px',
+            borderRadius: '6px',
+            overflow: 'auto',
+            marginBottom: '8px'
+          },
+          '& blockquote': {
+            borderLeft: '4px solid #ddd',
+            paddingLeft: '16px',
+            marginLeft: '0',
+            marginBottom: '8px',
+            fontStyle: 'italic'
+          },
+          '& ul, & ol': {
+            paddingLeft: '20px',
+            marginBottom: '8px'
+          },
+          '& li': {
+            marginBottom: '4px'
+          },
+          '& table': {
+            borderCollapse: 'collapse',
+            marginBottom: '8px',
+            width: '100%'
+          },
+          '& th, & td': {
+            border: '1px solid #ddd',
+            padding: '8px',
+            textAlign: 'left'
+          },
+          '& th': {
+            backgroundColor: 'rgba(0, 0, 0, 0.05)',
+            fontWeight: 'bold'
+          }
+        }}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+          >
+            {content}
+          </ReactMarkdown>
+        </Box>
+      );
+    } else {
+      // 普通文本内容
+      return (
+        <Typography 
+          variant="body2" 
+          component="pre"
+          sx={{ 
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            overflow: 'visible',
+            textOverflow: 'unset',
+            display: 'block',
+            width: '100%',
+            maxWidth: 'none',
+            lineHeight: 1.5
+          }}
+        >
+          {content}
+        </Typography>
+      );
     }
   };
 
@@ -303,52 +448,13 @@ const ChatInterface = () => {
                         {isLongContent(message.content) ? (
                           <Collapse 
                             in={expandedMessages.has(index)} 
-                            collapsedSize="200px"
+                            collapsedSize="300px"
                             timeout="auto"
                           >
-                            <Typography 
-                              variant="body2" 
-                              component="pre"
-                              sx={{ 
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-word',
-                                fontFamily: message.content.includes('{') || message.content.includes('[') 
-                                  ? 'monospace' : 'inherit',
-                                fontSize: message.content.includes('{') || message.content.includes('[') 
-                                  ? '0.8rem' : 'inherit',
-                                overflow: 'visible',
-                                textOverflow: 'unset',
-                                display: 'block',
-                                width: '100%',
-                                maxWidth: 'none',
-                                lineHeight: 1.5,
-                                position: 'relative'
-                              }}
-                            >
-                              {formatMessageContent(message.content)}
-                            </Typography>
+                            {renderMessageContent(message.content)}
                           </Collapse>
                         ) : (
-                          <Typography 
-                            variant="body2" 
-                            component="pre"
-                            sx={{ 
-                              whiteSpace: 'pre-wrap',
-                              wordBreak: 'break-word',
-                              fontFamily: message.content.includes('{') || message.content.includes('[') 
-                                ? 'monospace' : 'inherit',
-                              fontSize: message.content.includes('{') || message.content.includes('[') 
-                                ? '0.8rem' : 'inherit',
-                              overflow: 'visible',
-                              textOverflow: 'unset',
-                              display: 'block',
-                              width: '100%',
-                              maxWidth: 'none',
-                              lineHeight: 1.5
-                            }}
-                          >
-                            {formatMessageContent(message.content)}
-                          </Typography>
+                          renderMessageContent(message.content)
                         )}
 
                         {/* 内容长度提示 */}

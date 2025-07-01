@@ -1,7 +1,6 @@
 # 包含的文件
 include README.md
 include LICENSE
-include requirements.txt
 include pyproject.toml
 
 # 包含示例文件

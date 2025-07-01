@@ -437,6 +437,7 @@ class SwaggerAPIAgent:
                 "success": api_response.success,
                 "explanation": explanation,
                 "call_info": call_info,  # 添加调用信息到返回结果
+                "markdown_result": api_response.format_as_markdown(),  # 添加 Markdown 格式结果
                 "api_response": {
                     "status_code": api_response.status_code,
                     "data": api_response.data,
@@ -471,32 +472,57 @@ class SwaggerAPIAgent:
         return "\n".join(formatted_parts)
 
     def _format_results_message(self, results: List[Dict[str, Any]]) -> str:
-        """格式化结果消息"""
+        """格式化结果消息为 Markdown 格式"""
         if not results:
             return "没有执行任何操作"
 
         success_count = sum(1 for r in results if r["success"])
         total_count = len(results)
 
-        message_parts = [f"执行了 {total_count} 个 API 调用，成功 {success_count} 个：\n"]
+        message_parts = [
+            f"# 🚀 API 调用结果",
+            f"",
+            f"**总计**: {total_count} 个调用 | **成功**: {success_count} 个 | **失败**: {total_count - success_count} 个",
+            f""
+        ]
 
         for i, result in enumerate(results, 1):
             if result["success"]:
-                api_resp = result["api_response"]
-                message_parts.append(
-                    f"{i}. ✅ {result['explanation']}\n"
-                    f"   状态码: {api_resp['status_code']}\n"
-                    f"   URL: {api_resp['method']} {api_resp['url']}"
-                )
+                # 使用新的 markdown_result 字段
+                if "markdown_result" in result:
+                    message_parts.append(f"## 📋 调用 #{i}: {result['explanation']}")
+                    message_parts.append("")
+                    message_parts.append(result["markdown_result"])
+                    message_parts.append("")
+                else:
+                    # 降级处理：如果没有 markdown_result，使用旧格式
+                    api_resp = result["api_response"]
+                    message_parts.extend([
+                        f"## ✅ 调用 #{i}: {result['explanation']}",
+                        f"",
+                        f"**状态码**: `{api_resp['status_code']}`",
+                        f"**URL**: `{api_resp['method']} {api_resp['url']}`",
+                        f""
+                    ])
 
-                if api_resp["data"]:
-                    # 简化数据显示
-                    data_str = json.dumps(api_resp["data"], ensure_ascii=False, indent=2)
-                    if len(data_str) > 500:
-                        data_str = data_str[:500] + "..."
-                    message_parts.append(f"   响应数据: {data_str}")
+                    if api_resp["data"]:
+                        data_str = json.dumps(api_resp["data"], ensure_ascii=False, indent=2)
+                        if len(data_str) > 1000:
+                            data_str = data_str[:1000] + "..."
+                        message_parts.extend([
+                            f"**响应数据**:",
+                            f"```json",
+                            data_str,
+                            f"```",
+                            f""
+                        ])
             else:
-                message_parts.append(f"{i}. ❌ {result['function_name']}: {result['error']}")
+                message_parts.extend([
+                    f"## ❌ 调用 #{i}: {result['function_name']}",
+                    f"",
+                    f"**错误**: {result['error']}",
+                    f""
+                ])
 
         return "\n".join(message_parts)
 
@@ -529,6 +555,7 @@ class SwaggerAPIAgent:
             return {
                 "success": api_response.success,
                 "function_name": function_name,
+                "markdown_result": api_response.format_as_markdown(),  # 添加 Markdown 格式结果
                 "api_response": {
                     "status_code": api_response.status_code,
                     "data": api_response.data,

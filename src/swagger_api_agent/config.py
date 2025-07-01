@@ -49,3 +49,9 @@ LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 EXAMPLES_DIR = os.path.join(PROJECT_ROOT, "examples")
 DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
+
+# Web API 认证配置
+WEB_API_USERNAME = os.getenv("WEB_API_USERNAME", "admin")
+WEB_API_PASSWORD = os.getenv("WEB_API_PASSWORD", "admin123")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
+JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))

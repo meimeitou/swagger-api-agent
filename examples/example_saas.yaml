@@ -1,0 +1,543 @@
+swagger: '2.0'
+info:
+  title: 360安全DNS监测系统
+  version: v2.0.0
+  description: >-
+    360安全DNS监测系统对外api列表，部分接口需要鉴权，鉴权方式为Bearer
+    Token，需要在请求头中添加Authorization字段，值为Bearer
+    Token。开发人员如果想要在当前页面进行请求测试，请打开浏览器中的本网站的应用配置或者从网络请求中取出authorizations填写即可。
+tags:
+  - name: SaaS
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+consumes:
+  - application/json
+security:
+  - Bearer: []
+paths:
+  /apis/grpc/v2/AddDomainsToCustomList:
+    post:
+      summary: 向自定义黑白名单批量添加域名（限速60次/每分钟）
+      operationId: Firewall_AddDomainsToCustomList2
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v2UpdateCustomDomainListResponse'
+        default:
+          description: '接口默认返回json body,最外层结构如下所示, data字段使用上面code=200时的结构。'
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: body
+          description: 操作对象(target) 白名单：whitelist 黑名单：blacklist
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/v2UpdateCustomDomainListRequest'
+      tags:
+        - API-策略管理
+      security:
+        - SAAS:
+            - 系统管理员
+            - 操作员
+        - DSG:
+            - 系统管理员
+            - 操作员
+  /apis/grpc/v2/DeleteDomainsFromList:
+    post:
+      summary: 向自定义黑白名单批量删除域名（限速60次/每分钟）
+      operationId: Firewall_DeleteDomainsFromCustomList2
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v2UpdateCustomDomainListResponse'
+        default:
+          description: '接口默认返回json body,最外层结构如下所示, data字段使用上面code=200时的结构。'
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: body
+          description: 操作对象(target) 白名单：whitelist 黑名单：blacklist
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/v2UpdateCustomDomainListRequest'
+      tags:
+        - API-策略管理
+      security:
+        - SAAS:
+            - 系统管理员
+            - 操作员
+        - DSG:
+            - 系统管理员
+            - 操作员
+  /apis/grpc/v2/ListDomainsFromCustomList:
+    get:
+      summary: 列出自定义黑白名单列表中的域名（限速60次/每分钟）
+      operationId: Firewall_ListDomainsFromCustomList2
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v2ListDomainResponse'
+        default:
+          description: '接口默认返回json body,最外层结构如下所示, data字段使用上面code=200时的结构。'
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: target
+          description: 操作对象(target) 白名单：whitelist 黑名单：blacklist
+          in: query
+          required: true
+          type: string
+      tags:
+        - API-策略管理
+      security:
+        - SAAS:
+            - 系统管理员
+            - 操作员
+            - 超级管理员
+        - DSG:
+            - 系统管理员
+            - 操作员
+  /apis/grpc/v2/ReplaceDomainsToCustomList:
+    post:
+      summary: 替换自定义黑白名单的域名列表（限速60次/每分钟）
+      operationId: Firewall_ReplaceDomainsToCustomList2
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v2UpdateCustomDomainListResponse'
+        default:
+          description: '接口默认返回json body,最外层结构如下所示, data字段使用上面code=200时的结构。'
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: body
+          description: 操作对象(target) 白名单：whitelist 黑名单：blacklist
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/v2UpdateCustomDomainListRequest'
+      tags:
+        - API-策略管理
+      security:
+        - SAAS:
+            - 系统管理员
+            - 操作员
+        - DSG:
+            - 系统管理员
+            - 操作员
+  /apis/grpc/v2/GetUserInfo:
+    get:
+      summary: 获取当前用户信息记录登录信息 （限速10次/每分钟）
+      operationId: User_GetUserInfo2
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v2UserInfo'
+        default:
+          description: '接口默认返回json body,最外层结构如下所示, data字段使用上面code=200时的结构。'
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      tags:
+        - API-用户信息
+      security:
+        - SAAS:
+            - 系统管理员
+            - 操作员
+            - 分析师
+            - 审计员
+            - 超级管理员
+            - 无角色
+        - DSG:
+            - 系统管理员
+            - 操作员
+            - 分析师
+            - 审计员
+            - 无角色
+  /apis/grpc/v2/GetAllRcodeStats:
+    get:
+      summary: 获取dns应答状态分布（限速10次/每分钟）
+      operationId: Metric_GetAllRcodeStats2
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v2ResonseRcodeResponse'
+        default:
+          description: '接口默认返回json body,最外层结构如下所示, data字段使用上面code=200时的结构。'
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: start
+          description: 开始时间戳（必填项）
+          in: query
+          required: false
+          type: integer
+          format: int64
+        - name: end
+          description: 结束时间戳（必填项）
+          in: query
+          required: false
+          type: integer
+          format: int64
+        - name: uid
+          description: 网络分组（选填项）
+          in: query
+          required: false
+          type: string
+      tags:
+        - API-解析数据统计
+      security:
+        - SAAS:
+            - 系统管理员
+            - 操作员
+        - DSG:
+            - 系统管理员
+            - 操作员
+  /apis/grpc/v2/GetResolutionAndBlockStats:
+    get:
+      summary: 获取最近解析、告警及拦截次数统计（限速10次/每分钟）
+      operationId: Metric_GetResolutionAndBlockStats2
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v2RequestTrendResponse'
+        default:
+          description: '接口默认返回json body,最外层结构如下所示, data字段使用上面code=200时的结构。'
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: start
+          description: 开始时间戳（必填项）
+          in: query
+          required: false
+          type: integer
+          format: int64
+        - name: end
+          description: 结束时间戳（必填项）
+          in: query
+          required: false
+          type: integer
+          format: int64
+        - name: uid
+          description: 网络分组（选填项）
+          in: query
+          required: false
+          type: string
+      tags:
+        - API-解析数据统计
+      security:
+        - SAAS:
+            - 系统管理员
+            - 操作员
+        - DSG:
+            - 系统管理员
+            - 操作员
+  /apis/grpc/v2/ListThreatDetail:
+    get:
+      summary: 获取最近拦截或告警记录明细（限速10次/分钟）
+      operationId: Metric_ListThreatDetail2
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v2ListThreatDetailResponse'
+        default:
+          description: '接口默认返回json body,最外层结构如下所示, data字段使用上面code=200时的结构。'
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: cur_page
+          description: 页码，默认值：1
+          in: query
+          required: false
+          type: integer
+          format: int64
+        - name: page_size
+          description: 每页数据行数（20/50/100），默认值：20
+          in: query
+          required: false
+          type: integer
+          format: int64
+        - name: time_start
+          description: 开始时间的 Unix 时间戳（最大查询范围为最近 24 小时），默认值：当前时间 - 24 小时
+          in: query
+          required: false
+          type: integer
+          format: int64
+        - name: time_end
+          description: 结束时间的 Unix 时间戳（最大查询范围为最近 24 小时），默认值：当前时间
+          in: query
+          required: false
+          type: integer
+          format: int64
+        - name: order_by
+          description: 排序（asc/desc），默认值：desc
+          in: query
+          required: false
+          type: string
+        - name: zone_id
+          description: 安全域ID，默认值：空
+          in: query
+          required: false
+          type: string
+        - name: domain
+          description: 请求域名，默认值：空
+          in: query
+          required: false
+          type: string
+        - name: client_ip
+          description: 资产 IP 地址，默认值：空
+          in: query
+          required: false
+          type: string
+        - name: severity
+          description: 威胁等级（low/middle/high/critical），默认值：所有
+          in: query
+          required: false
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+      tags:
+        - API-威胁告警
+      security:
+        - SAAS:
+            - 系统管理员
+            - 操作员
+            - 分析师
+            - 超级管理员
+        - DSG:
+            - 系统管理员
+            - 操作员
+            - 分析师
+definitions:
+  v2ListDomainResponse:
+    type: object
+    properties:
+      total_num:
+        type: integer
+        format: int64
+        title: 域名总数
+      domains:
+        type: array
+        items:
+          type: string
+        title: 域名列表
+  v2UpdateCustomDomainListRequest:
+    type: object
+    properties:
+      domains:
+        type: array
+        items:
+          type: string
+        title: 域名列表
+      target:
+        type: string
+        title: 操作对象 白名单：whitelist 黑名单：blacklist
+    description: 操作对象(target) 白名单：whitelist 黑名单：blacklist
+    title: UpdateCustomDomainListRequest
+    required:
+      - target
+  rpcStatus:
+    type: object
+    properties:
+      errno:
+        type: integer
+        format: int32
+      errmsg:
+        type: string
+        default: success
+      data:
+        type: object
+        default: null
+        description: 'data字段值为Responses中定义的结构, 或者null'
+  v2UpdateCustomDomainListResponse:
+    type: object
+    properties:
+      commit_num:
+        type: integer
+        format: int64
+        title: 本次操作提交的域名数量
+      affect_num:
+        type: integer
+        format: int64
+        title: 本次操作修改的域名数量
+      fail_domains:
+        type: array
+        items:
+          type: string
+        title: 无效的域名列表
+  v2UserInfo:
+    type: object
+    properties:
+      name:
+        type: string
+      role_name:
+        type: string
+      role_id:
+        type: integer
+        format: int32
+      login_time:
+        type: string
+      status:
+        type: integer
+        format: int32
+        title: 0 禁用 1 正常
+      phone_number:
+        type: string
+      did:
+        type: string
+      eid:
+        type: string
+      id:
+        type: integer
+        format: int32
+      login_name:
+        type: string
+        title: 登录用户名
+      company_name:
+        type: string
+      changed_password_time:
+        type: string
+      email:
+        type: string
+      user_type:
+        type: string
+      create_time:
+        type: string
+      update_time:
+        type: string
+      parent_eid:
+        type: string
+        description: 上级组织的eid
+        title: bool is_parent_user = 17; //该用户是上级组织的用户
+      role_name_en:
+        type: string
+        title: |-
+          string parent_name = 19; //上级组织的名称
+           bool has_sub_corp = 20; // 企业有二级组织
+  v2RequestTrendResponse:
+    type: object
+    properties:
+      parse_count:
+        type: string
+        format: uint64
+        title: 解析请求数
+      ioc_count:
+        type: string
+        format: uint64
+        title: 威胁告警数
+      intercept:
+        $ref: '#/definitions/v2InterceptInfo'
+        title: 拦截分类
+      rate:
+        type: number
+        format: float
+        title: 拦截率
+  v2ListThreatDetail:
+    type: object
+    properties:
+      query_timestamp:
+        type: integer
+        format: int64
+      query_time_format:
+        type: string
+      zone_id:
+        type: string
+      zone_name:
+        type: string
+      client_ip:
+        type: string
+      client_port:
+        type: string
+        format: uint64
+      domain:
+        type: string
+      ioc:
+        type: string
+      severity:
+        type: integer
+        format: int64
+      threat_type:
+        type: string
+      threat_name:
+        type: string
+      threat_description:
+        type: string
+      action:
+        type: string
+  v2InterceptInfo:
+    type: object
+    properties:
+      threat_count:
+        type: string
+        format: uint64
+        title: 威胁拦截
+      content_count:
+        type: string
+        format: uint64
+        title: 内容拦截
+      custom_count:
+        type: string
+        format: uint64
+        title: 自定义拦截
+    title: 拦截分类
+  v2ResonseRcodeInfo:
+    type: object
+    properties:
+      rcode:
+        type: integer
+        format: int64
+        title: >-
+          rcode 码
+          参考连接：https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6
+      rcode_name:
+        type: string
+        title: rcode name
+      count:
+        type: string
+        format: uint64
+        title: 请求次数
+  v2ListThreatDetailResponse:
+    type: object
+    properties:
+      items:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v2ListThreatDetail'
+      cur_page:
+        type: integer
+        format: int64
+        title: 当前页数
+      total_pages:
+        type: integer
+        format: int64
+        title: 所有页数
+      page_size:
+        type: integer
+        format: int64
+        title: 每页数据行数
+      total:
+        type: integer
+        format: int64
+        title: 数据总数
+  v2ResonseRcodeResponse:
+    type: object
+    properties:
+      info:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v2ResonseRcodeInfo'

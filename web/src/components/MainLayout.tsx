@@ -7,17 +7,30 @@ import {
   Paper,
   Alert,
   Snackbar,
+  IconButton,
+  Tooltip,
+  Tabs,
+  Tab,
 } from '@mui/material';
+import { Logout as LogoutIcon, Functions, History, Info } from '@mui/icons-material';
 import { useApp } from '../hooks/useApp';
 import ConnectionStatus from './ConnectionStatus';
 import ChatInterface from './ChatInterface';
 import FunctionsList from './FunctionsList';
 import ApiInfo from './ApiInfo';
+import ConversationHistory from './ConversationHistory';
 import apiService from '../services/api';
+import UserStatus from './UserStatus';
 
 const MainLayout = () => {
   const { state, dispatch } = useApp();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [leftPanelTab, setLeftPanelTab] = useState(0);
+
+  // 处理左侧面板Tab切换
+  const handleLeftPanelTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setLeftPanelTab(newValue);
+  };
 
   // 初始化连接检查
   useEffect(() => {
@@ -67,6 +80,15 @@ const MainLayout = () => {
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  const handleLogout = () => {
+    apiService.logout();
+    dispatch({ type: 'SET_AUTHENTICATED', payload: false });
+    dispatch({ type: 'SET_USER_INFO', payload: null });
+    dispatch({ type: 'SET_CONNECTED', payload: false });
+    dispatch({ type: 'SET_FUNCTIONS', payload: [] });
+    dispatch({ type: 'SET_CONVERSATIONS', payload: [] });
+  };
+
   return (
     <Box sx={{ 
       width: '100vw',
@@ -82,7 +104,15 @@ const MainLayout = () => {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Swagger API Agent
           </Typography>
-          <ConnectionStatus />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <UserStatus />
+            <ConnectionStatus />
+            <Tooltip title="登出">
+              <IconButton color="inherit" onClick={handleLogout}>
+                <LogoutIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -108,7 +138,7 @@ const MainLayout = () => {
           maxWidth: '1400px', // 设置最大宽度限制
           height: '100%' // 填满父容器高度
         }}>
-          {/* 左侧面板 - API信息和函数列表 */}
+          {/* 左侧面板 - API信息、函数列表和对话历史 */}
           <Box sx={{ 
             flex: '1', 
             width: { xs: '100%', md: '40%' }, // 在桌面端占40%宽度
@@ -116,19 +146,38 @@ const MainLayout = () => {
             maxWidth: '500px',
             height: '100%' // 填满容器高度
           }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
-              <Paper sx={{ p: 2, flexShrink: 0 }}>
-                <ApiInfo />
-              </Paper>
-              <Paper sx={{ 
-                p: 2, 
-                flexGrow: 1, 
-                overflow: 'auto',
-                minHeight: 0 // 确保flex子项能正确缩放
-              }}>
-                <FunctionsList />
-              </Paper>
-            </Box>
+            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {/* Tab 标签 */}
+              <Tabs 
+                value={leftPanelTab} 
+                onChange={handleLeftPanelTabChange} 
+                variant="fullWidth"
+                sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}
+              >
+                <Tab icon={<Info />} label="API信息" />
+                <Tab icon={<Functions />} label="函数列表" />
+                <Tab icon={<History />} label="用户请求" />
+              </Tabs>
+              
+              {/* Tab 内容 */}
+              <Box sx={{ flexGrow: 1, overflow: 'hidden', p: 2 }}>
+                {leftPanelTab === 0 && (
+                  <Box sx={{ height: '100%', overflow: 'auto' }}>
+                    <ApiInfo />
+                  </Box>
+                )}
+                {leftPanelTab === 1 && (
+                  <Box sx={{ height: '100%', overflow: 'auto' }}>
+                    <FunctionsList />
+                  </Box>
+                )}
+                {leftPanelTab === 2 && (
+                  <Box sx={{ height: '100%' }}>
+                    <ConversationHistory />
+                  </Box>
+                )}
+              </Box>
+            </Paper>
           </Box>
 
           {/* 右侧面板 - 聊天界面 */}

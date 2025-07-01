@@ -1,7 +1,7 @@
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AppProvider } from './context/AppContext';
-import MainLayout from './components/MainLayout';
+import AuthGuard from './components/AuthGuard';
 
 const theme = createTheme({
   palette: {
@@ -20,7 +20,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AppProvider>
-        <MainLayout />
+        <AuthGuard />
       </AppProvider>
     </ThemeProvider>
   );

@@ -6,6 +6,63 @@ const api = axios.create({
   },
 });
 
+// JWT token管理
+class TokenManager {
+  private static readonly TOKEN_KEY = 'swagger_api_token';
+
+  static getToken(): string | null {
+    return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  static setToken(token: string): void {
+    localStorage.setItem(this.TOKEN_KEY, token);
+  }
+
+  static removeToken(): void {
+    localStorage.removeItem(this.TOKEN_KEY);
+  }
+
+  static isTokenValid(): boolean {
+    const token = this.getToken();
+    if (!token) return false;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const exp = payload.exp * 1000; // 转换为毫秒
+      return Date.now() < exp;
+    } catch {
+      return false;
+    }
+  }
+}
+
+// 请求拦截器 - 自动添加认证token
+api.interceptors.request.use(
+  (config) => {
+    const token = TokenManager.getToken();
+    if (token && TokenManager.isTokenValid()) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// 响应拦截器 - 处理401未授权响应
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      TokenManager.removeToken();
+      // 可以在这里触发重新登录逻辑
+      window.dispatchEvent(new CustomEvent('auth-expired'));
+    }
+    return Promise.reject(error);
+  }
+);
+
 // API响应接口
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -26,10 +83,18 @@ export interface FunctionCallRequest {
   parameters?: Record<string, unknown>;
 }
 
-// 认证设置请求
-export interface AuthRequest {
-  auth_type: string;
-  [key: string]: unknown;
+// 登录请求和响应接口
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  token?: string;
+  message?: string;
+  expires_in?: number;
+  error?: string;
 }
 
 // API函数信息
@@ -72,6 +137,28 @@ export interface ApiInfoResponse {
 }
 
 class ApiService {
+  // 用户登录
+  async login(request: LoginRequest): Promise<LoginResponse> {
+    const response = await api.post<LoginResponse>('/api/login', request);
+    
+    // 如果登录成功，保存token
+    if (response.data.success && response.data.token) {
+      TokenManager.setToken(response.data.token);
+    }
+    
+    return response.data;
+  }
+
+  // 用户登出
+  logout(): void {
+    TokenManager.removeToken();
+  }
+
+  // 检查是否已登录
+  isAuthenticated(): boolean {
+    return TokenManager.isTokenValid();
+  }
+
   // 健康检查
   async healthCheck(): Promise<HealthResponse> {
     const response = await api.get<HealthResponse>('/health');
@@ -109,8 +196,13 @@ class ApiService {
 
   // 获取对话历史
   async getConversationHistory(): Promise<ApiResponse<ConversationMessage[]>> {
-    const response = await api.get<ApiResponse<ConversationMessage[]>>('/api/history');
-    return response.data;
+    const response = await api.get<{success: boolean, history: ConversationMessage[], count: number}>('/api/history');
+    // 转换后端响应格式以匹配前端期望
+    return {
+      success: response.data.success,
+      data: response.data.history,
+      message: `成功获取 ${response.data.count} 条对话记录`
+    };
   }
 
   // 清空对话历史
@@ -118,13 +210,8 @@ class ApiService {
     const response = await api.delete<ApiResponse>('/api/history');
     return response.data;
   }
-
-  // 设置API认证
-  async setApiAuth(request: AuthRequest): Promise<ApiResponse> {
-    const response = await api.post<ApiResponse>('/api/auth', request);
-    return response.data;
-  }
 }
 
 export const apiService = new ApiService();
+export { TokenManager };
 export default apiService;

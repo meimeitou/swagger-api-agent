@@ -9,12 +9,24 @@ from pathlib import Path
 readme_file = Path(__file__).parent / "README.md"
 long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists() else ""
 
-# 读取 requirements
-requirements_file = Path(__file__).parent / "requirements.txt"
-requirements = []
-if requirements_file.exists():
-    requirements = requirements_file.read_text(encoding="utf-8").strip().split('\n')
-    requirements = [req.strip() for req in requirements if req.strip() and not req.startswith('#')]
+# 定义依赖包列表 (与 pyproject.toml 保持同步)
+requirements = [
+    "requests>=2.28.0",
+    "pyyaml>=6.0",
+    "openapi-spec-validator>=0.5.0",
+    "flask>=2.2.0",
+    "flask-cors>=4.0.0",
+    "colorama>=0.4.4",
+    "pydantic>=2.0.0",
+    "httpx>=0.24.0",
+    "openai>=1.0.0",
+    "prance>=23.6.21.0",
+    "jsonschema>=4.0.0",
+    "jinja2>=3.0.0",
+    "python-dotenv>=1.0.0",
+    "swagger-spec-validator>=3.0.4",
+    "pyjwt>=2.10.1",
+]
 
 setup(
     name="swagger-api-agent",
